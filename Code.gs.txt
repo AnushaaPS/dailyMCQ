@@ -517,6 +517,30 @@ function todayStr_() {
   return Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'Asia/Kolkata', 'yyyy-MM-dd');
 }
 
+function isTestAvailableToday_() {
+
+  const tz =
+    Session.getScriptTimeZone() ||
+    'Asia/Kolkata';
+
+  const now =
+    new Date();
+
+  const currentTime =
+    Utilities.formatDate(
+      now,
+      tz,
+      'HH:mm'
+    );
+
+  // Full-day test availability
+  return (
+    currentTime >= '00:00' &&
+    currentTime <= '23:49'
+  );
+
+}
+
 function genPassword_(rollNo) {
   const rand = Math.floor(100 + Math.random() * 900);
   return String(rollNo).trim() + '@' + rand;
@@ -1647,6 +1671,9 @@ function getTodayTestInfo(rollNo) {
   const today =
     todayStr_();
 
+    const testAvailable =
+    isTestAvailableToday_();
+
 
   const rollKey =
     String(rollNo || '')
@@ -1670,24 +1697,34 @@ function getTodayTestInfo(rollNo) {
     );
 
 
-  if (!student) {
+    if (!testAvailable) {
 
     return {
 
-      success: false,
+      success: true,
 
-      message:
-        'Student not found',
+      date: today,
 
-      totalQuestions: 0,
+      dept: studentDept,
 
-      attempted: 0,
+      year: studentYear,
+
+      totalQuestions:
+        questions.length,
+
+      attempted:
+        attemptedQids.length,
 
       remaining: 0,
 
       completed: false,
 
       violated: false,
+
+      testClosed: true,
+
+      message:
+        "Today's test window has closed.",
 
       questions: []
 
