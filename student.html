@@ -450,7 +450,14 @@
       <div class="page" id="page-answerkey">
         <div class="card">
           <h3>🗝 Answer Key</h3>
-          <p class="muted" style="margin-bottom:14px;">Correct answers appear here once your admin releases them — usually automatically the day after a question was asked.</p>
+          <p
+  class="muted"
+  style="margin-bottom:14px;"
+>
+  Review your submitted answers here.
+  Answer review is available only when
+  enabled by the admin.
+</p>
           <div id="answerKeyList"></div>
         </div>
       </div>
@@ -815,8 +822,8 @@
 
 <script>
   // ⚠️ PASTE YOUR DEPLOYED WEB APP URL BELOW (Deploy → Manage deployments → copy "Web app" URL)
-  const BASE_URL = "https://script.google.com/macros/s/AKfycbyQDV9OrxLSc0MKLJ8AdT3B8DzPJv3tHKsdQZz1gVCZwBPQ6rHwEIVJR1WNGI5ih11_Dw/exec";
-  const API_URL = "https://script.google.com/macros/s/AKfycbyQDV9OrxLSc0MKLJ8AdT3B8DzPJv3tHKsdQZz1gVCZwBPQ6rHwEIVJR1WNGI5ih11_Dw/exec";
+  const BASE_URL = "https://script.google.com/macros/s/AKfycbxq4ZYyAF6dmEokdsVJOimnr74uKijaqsIVjPEofaxECaYTFWqi2cJbrz6QIegDXhFeTA/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbxq4ZYyAF6dmEokdsVJOimnr74uKijaqsIVjPEofaxECaYTFWqi2cJbrz6QIegDXhFeTA/exec";
   const session = JSON.parse(sessionStorage.getItem('dqa_student') || 'null');
   if (!session || !session.success) {
 
@@ -2861,191 +2868,444 @@ document.addEventListener(
 }
 
   // ---- Progress / history ----
-  async function renderHistory() {
+async function renderHistory() {
 
-    try {
+  try {
 
-        const response = await fetch(API_URL, {
-            method: "POST",
-            body: JSON.stringify({
-                action: "getStudentReport",
-                rollNo: session.rollNo,
-                period: "all"
-            })
-        });
+    const response = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "getStudentReport",
+        rollNo: session.rollNo,
+        period: "all"
+      })
+    });
 
-        const res = await response.json();
+    const res = await response.json();
 
-        document.getElementById("historyBody").innerHTML =
-            res.history && res.history.length
-                ? res.history.slice().reverse().map(h => `
-                    <tr>
-                        <td>${h.date}</td>
-                        <td>${h.selected || "-"}</td>
-                        <td>
-                            ${
-                                h.isCorrect === true || h.isCorrect === "TRUE"
-                                    ? "✅ Correct"
-                                    : (h.selected
-                                        ? "❌ Wrong"
-                                        : "⏱ Unattempted")
-                            }
-                        </td>
-                        <td>${h.marks}</td>
-                        <td>${h.timeTaken}s</td>
-                    </tr>
-                `).join("")
-                : `
-                    <tr>
-                        <td colspan="5" class="muted">
-                            No history yet
-                        </td>
-                    </tr>
-                `;
+    document.getElementById("historyBody").innerHTML =
 
-    } catch (err) {
+      res.history && res.history.length
 
-        toast(err.message, "error");
+        ? res.history
+            .slice()
+            .reverse()
+            .map(h => `
+
+              <tr>
+
+                <td>
+                  ${h.date}
+                </td>
+
+                <td>
+                  ${h.selected || "-"}
+                </td>
+
+                <td>
+
+                  ${
+                    h.isCorrect === true ||
+                    h.isCorrect === "TRUE"
+
+                      ? "✅ Correct"
+
+                      : (
+                          h.selected
+
+                            ? "❌ Wrong"
+
+                            : "⏱ Unattempted"
+                        )
+                  }
+
+                </td>
+
+                <td>
+                  ${h.marks}
+                </td>
+
+                <td>
+                  ${h.timeTaken}s
+                </td>
+
+              </tr>
+
+            `)
+            .join("")
+
+        : `
+
+          <tr>
+
+            <td
+              colspan="5"
+              class="muted"
+            >
+
+              No history yet
+
+            </td>
+
+          </tr>
+
+        `;
+
+  } catch (err) {
+
+    toast(
+      err.message,
+      "error"
+    );
+
+  }
+
+}
+ 
+// ---- Answer Key ----
+async function renderAnswerKey() {
+
+  const container =
+    document.getElementById(
+      "answerKeyList"
+    );
+
+
+  container.innerHTML =
+
+    '<p class="muted">Loading review...</p>';
+
+
+  try {
+
+
+    const response =
+
+      await fetch(
+        API_URL,
+        {
+
+          method: "POST",
+
+          body: JSON.stringify({
+
+            action:
+              "getAnswerKey",
+
+            rollNo:
+              session.rollNo,
+
+            period:
+              "all"
+
+          })
+
+        }
+      );
+
+
+    const list =
+
+      await response.json();
+
+
+    if (
+      !Array.isArray(list) ||
+      list.length === 0
+    ) {
+
+      container.innerHTML = `
+
+        <p class="muted">
+
+          No submitted answers
+          available for review.
+
+        </p>
+
+      `;
+
+
+      return;
 
     }
 
-}
 
-  // ---- Answer Key ----
-  async function renderAnswerKey() {
+    container.innerHTML =
 
-    const container = document.getElementById("answerKeyList");
-    container.innerHTML = '<p class="muted">Loading...</p>';
+      list.map(item => {
 
-    try {
 
-        const response = await fetch(API_URL, {
-            method: "POST",
-            body: JSON.stringify({
-                action: "getAnswerKey",
-                rollNo: session.rollNo,
-                period: "all"
-            })
-        });
+        const opts = [
 
-        const list = await response.json();
+          ["A", item.optionA],
 
-        if (!list || list.length === 0) {
-            container.innerHTML =
-                '<p class="muted">No attempts yet — take today\'s test to get started.</p>';
-            return;
-        }
+          ["B", item.optionB],
 
-        container.innerHTML = list.map(item => {
+          ["C", item.optionC],
 
-            const opts = [
-                ["A", item.optionA],
-                ["B", item.optionB],
-                ["C", item.optionC],
-                ["D", item.optionD]
-            ].filter(o => o[1]);
+          ["D", item.optionD]
 
-            let optsHtml = "";
+        ].filter(
+          option => option[1]
+        );
 
-            if (item.revealed) {
 
-                optsHtml = opts.map(([letter, text]) => {
+        let optsHtml = "";
 
-                    let cls = "ak-opt";
 
-                    if (letter === item.correctAnswer)
-                        cls += " correct";
-                    else if (letter === item.selected)
-                        cls += " wrong-selected";
+        if (item.revealed) {
 
-                    return `
-                        <div class="${cls}">
-                            ${letter}. ${renderContent(text)}
-                        </div>
-                    `;
 
-                }).join("");
+          optsHtml =
 
-            } else {
+            opts.map(
+              ([letter, text]) => {
 
-                optsHtml = opts.map(([letter, text]) => {
 
-                    const cls = "ak-opt" +
-                        (letter === item.selected ? " selected-only" : "");
+                let cls =
+                  "ak-opt";
 
-                    return `
-                        <div class="${cls}">
-                            ${letter}. ${renderContent(text)}
-                            ${
-                                letter === item.selected
-                                ? '<span class="muted"> (your answer)</span>'
-                                : ""
-                            }
-                        </div>
-                    `;
 
-                }).join("");
+                if (
+                  letter ===
+                  item.correctAnswer
+                ) {
 
-                optsHtml += `
-                    <div class="ak-locked" style="margin-top:8px;">
-                        🔒 Answer key not released yet —
-                        check back after it's revealed.
-                    </div>
-                `;
-            }
+                  cls +=
+                    " correct";
 
-            return `
-                <div class="ak-item">
+                }
 
-                    <div class="ak-item-head">
 
-                        <span class="ak-date">
-                            ${item.date}
-                        </span>
+                if (
+                  letter ===
+                  item.selected
+                ) {
 
-                        <span>
-                            ${
-                                item.isCorrect
-                                ? "✅ Correct"
-                                : (item.selected
-                                    ? "❌ Wrong"
-                                    : "⏱ Unattempted")
-                            }
-                            · ${item.marksScored || 0} mark(s)
-                        </span>
+                  cls +=
+                    " selected-only";
 
-                    </div>
+                }
 
-                    <div class="ak-question">
-                        ${renderContent(item.question)}
-                    </div>
+
+                return `
+
+                  <div
+                    class="${cls}"
+                  >
+
+                    ${letter}.
+
+                    ${renderContent(text)}
+
 
                     ${
-                        item.imageLink
-                        ? `<img src="${item.imageLink}"
-                               style="max-width:100%;
-                                      border-radius:8px;
-                                      margin-bottom:10px;">`
+                      letter ===
+                      item.selected
+
+                        ? `
+                          <span
+                            class="muted"
+                          >
+                            (your answer)
+                          </span>
+                        `
+
                         : ""
                     }
 
-                    ${optsHtml}
+                  </div>
 
-                </div>
-            `;
+                `;
 
-        }).join("");
+              }
+            )
+            .join("");
 
-        typesetMath(container);
 
-    } catch (err) {
+        } else {
 
-        container.innerHTML =
-            `<p class="muted">${err.message}</p>`;
 
-        toast(err.message, "error");
+          optsHtml =
+
+            opts.map(
+              ([letter, text]) => {
+
+
+                const cls =
+
+                  "ak-opt" +
+
+                  (
+                    letter ===
+                    item.selected
+
+                      ? " selected-only"
+
+                      : ""
+                  );
+
+
+                return `
+
+                  <div
+                    class="${cls}"
+                  >
+
+                    ${letter}.
+
+                    ${renderContent(text)}
+
+
+                    ${
+                      letter ===
+                      item.selected
+
+                        ? `
+                          <span
+                            class="muted"
+                          >
+                            (your answer)
+                          </span>
+                        `
+
+                        : ""
+                    }
+
+                  </div>
+
+                `;
+
+              }
+            )
+            .join("");
+
+
+          optsHtml += `
+
+            <div
+              class="ak-locked"
+              style="margin-top:8px;"
+            >
+
+              🔒 Review answers are
+              currently hidden by admin.
+
+            </div>
+
+          `;
+
+        }
+
+
+        return `
+
+          <div class="ak-item">
+
+
+            <div class="ak-item-head">
+
+              <span class="ak-date">
+
+                ${item.date}
+
+              </span>
+
+
+              <span class="muted">
+
+                ${
+                  item.revealed
+
+                    ? "📖 Answer review available"
+
+                    : "🔒 Review hidden"
+                }
+
+              </span>
+
+            </div>
+
+
+            <div class="ak-question">
+
+              ${renderContent(
+                item.question
+              )}
+
+            </div>
+
+
+            ${
+
+              item.imageLink
+
+                ? `
+
+                  <img
+
+                    src="${item.imageLink}"
+
+                    style="
+                      max-width:100%;
+                      border-radius:10px;
+                      margin:8px 0 12px;
+                    "
+
+                  >
+
+                `
+
+                : ""
+
+            }
+
+
+            ${optsHtml}
+
+
+          </div>
+
+        `;
+
+      })
+      .join("");
+
+
+    if (
+      window.MathJax &&
+      MathJax.typesetPromise
+    ) {
+
+      MathJax.typesetPromise([
+        container
+      ]);
 
     }
+
+
+  } catch (err) {
+
+
+    container.innerHTML = `
+
+      <p class="muted">
+
+        Unable to load
+        answer review.
+
+      </p>
+
+    `;
+
+
+    toast(
+      err.message,
+      "error"
+    );
+
+  }
 
 }
 
