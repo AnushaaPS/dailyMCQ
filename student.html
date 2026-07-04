@@ -815,14 +815,40 @@
 
 <script>
   // ⚠️ PASTE YOUR DEPLOYED WEB APP URL BELOW (Deploy → Manage deployments → copy "Web app" URL)
-  const BASE_URL = "https://script.google.com/macros/s/AKfycbzHDaFSglWWtzrP9m37gQJLXDcD71X2oXF49Q_X5BTZRRUNJTsr8PFNNeB_oo1w6pzy/exec";
-  const API_URL = "https://script.google.com/macros/s/AKfycbzHDaFSglWWtzrP9m37gQJLXDcD71X2oXF49Q_X5BTZRRUNJTsr8PFNNeB_oo1w6pzy/exec";
+  const BASE_URL = "https://script.google.com/macros/s/AKfycbyQDV9OrxLSc0MKLJ8AdT3B8DzPJv3tHKsdQZz1gVCZwBPQ6rHwEIVJR1WNGI5ih11_Dw/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbyQDV9OrxLSc0MKLJ8AdT3B8DzPJv3tHKsdQZz1gVCZwBPQ6rHwEIVJR1WNGI5ih11_Dw/exec";
   const session = JSON.parse(sessionStorage.getItem('dqa_student') || 'null');
-  if (!session || !session.success) { window.top.location.href = BASE_URL; }
-  else {
-    document.getElementById('pName').textContent = session.name;
-    document.getElementById('pMeta').textContent = session.rollNo + ' · ' + session.dept + ' · Yr ' + session.year + ' · Sec ' + session.section;
-  }
+  if (!session || !session.success) {
+
+  window.location.replace("index.html");
+
+} else {
+
+  document
+    .getElementById('pName')
+    .textContent =
+    session.name;
+
+
+  document
+    .getElementById('pMeta')
+    .textContent =
+
+    session.rollNo +
+
+    ' · ' +
+
+    session.dept +
+
+    ' · Yr ' +
+
+    session.year +
+
+    ' · Sec ' +
+
+    session.section;
+
+}
 
   // Theme
   const themeToggle = document.getElementById('themeToggle');
@@ -838,7 +864,17 @@
     document.getElementById('sidebar').classList.toggle('open', open);
     document.getElementById('overlay').classList.toggle('show', open);
   }
-  function logout(){ sessionStorage.removeItem('dqa_student'); window.top.location.href = "index.html"; }
+  function logout() {
+
+  sessionStorage.removeItem(
+    'dqa_student'
+  );
+
+  window.location.replace(
+    "index.html"
+  );
+
+}
   function toast(msg, type){
     const t = document.getElementById('toast');
     t.textContent = msg; t.className = 'toast show ' + (type||'success');
@@ -1028,122 +1064,72 @@ async function loadHome() {
     // VIOLATED TEST
     // ============================================================
 
-    if (info.violated) {
+    if (info.testClosed) {
 
+  el.textContent =
+    "Today's test window has closed.";
 
-      el.textContent =
+  btn.disabled = true;
 
-        "Today's test is completed. " +
+  btn.textContent =
+    "Test Closed";
 
-        "Test terminated due to: " +
 
-        (
+} else if (info.violated) {
 
-          info.violationLabel ||
+  el.textContent =
 
-          "Test rule violation"
+    "Today's test is completed. " +
 
-        ) +
+    "Test terminated due to: " +
 
-        ". Previously submitted answers and marks are retained.";
+    info.violationLabel +
 
+    ". Previously submitted answers and marks are retained.";
 
-      btn.disabled = true;
 
+  btn.disabled = true;
 
-      btn.textContent =
 
-        "✓ Completed";
+  btn.textContent =
+    "✓ Completed";
 
 
-    }
+} else if (info.totalQuestions === 0) {
 
+  el.textContent =
+    "No question has been posted for today yet.";
 
-    // ============================================================
-    // NO TEST TODAY
-    // ============================================================
+  btn.disabled = true;
 
-    else if (
+  btn.textContent =
+    "No Test Today";
 
-      info.totalQuestions === 0
 
-    ) {
+} else if (info.completed) {
 
+  el.textContent =
+    `You've completed today's test — ${info.attempted}/${info.totalQuestions}`;
 
-      el.textContent =
+  btn.disabled = true;
 
-        "No question has been posted for today yet.";
+  btn.textContent =
+    "✓ Completed";
 
 
-      btn.disabled = true;
+} else {
 
+  el.textContent =
+    `${info.remaining} of ${info.totalQuestions} question(s) remaining today.`;
 
-      btn.textContent =
+  btn.disabled = false;
 
-        "No Test Today";
+  btn.textContent =
+    info.attempted > 0
+      ? "Continue Test"
+      : "Start Today's Test";
 
-
-    }
-
-
-    // ============================================================
-    // TEST COMPLETED
-    // ============================================================
-
-    else if (
-
-      info.completed
-
-    ) {
-
-
-      el.textContent =
-
-        `You've completed today's test — ` +
-
-        `${info.attempted}/${info.totalQuestions}`;
-
-
-      btn.disabled = true;
-
-
-      btn.textContent =
-
-        "✓ Completed";
-
-
-    }
-
-
-    // ============================================================
-    // TEST AVAILABLE
-    // ============================================================
-
-    else {
-
-
-      el.textContent =
-
-        `${info.remaining} of ` +
-
-        `${info.totalQuestions} ` +
-
-        `question(s) remaining today.`;
-
-
-      btn.disabled = false;
-
-
-      btn.textContent =
-
-        info.attempted > 0
-
-          ? "Continue Test"
-
-          : "Start Today's Test";
-
-
-    }
+}
 
 
     // ============================================================
