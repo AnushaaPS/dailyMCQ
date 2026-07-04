@@ -729,17 +729,31 @@
 
 <script>
   // ⚠️ PASTE YOUR DEPLOYED WEB APP URL BELOW (Deploy → Manage deployments → copy "Web app" URL)
-    const BASE_URL = "https://script.google.com/macros/s/AKfycbzHDaFSglWWtzrP9m37gQJLXDcD71X2oXF49Q_X5BTZRRUNJTsr8PFNNeB_oo1w6pzy/exec";
-    const API_URL = "https://script.google.com/macros/s/AKfycbzHDaFSglWWtzrP9m37gQJLXDcD71X2oXF49Q_X5BTZRRUNJTsr8PFNNeB_oo1w6pzy/exec";
+    const BASE_URL = "https://script.google.com/macros/s/AKfycbyQDV9OrxLSc0MKLJ8AdT3B8DzPJv3tHKsdQZz1gVCZwBPQ6rHwEIVJR1WNGI5ih11_Dw/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbyQDV9OrxLSc0MKLJ8AdT3B8DzPJv3tHKsdQZz1gVCZwBPQ6rHwEIVJR1WNGI5ih11_Dw/exec";
   let allStudents = [], allQuestions = [], distinctYS = {years:[], sections:[]}, lbPeriod = 'day', lastFocused = 'qText';
 
   // ---- Guard ----
   const adminSession = JSON.parse(sessionStorage.getItem('dqa_admin') || 'null');
-  if (!adminSession || !adminSession.success) {
-    window.top.location.href = BASE_URL; 
-  } else {
-    document.getElementById('adminName').textContent = '👤 ' + adminSession.username;
-  }
+  if (
+  !adminSession ||
+  !adminSession.success
+) {
+
+  window.location.replace(
+    "index.html"
+  );
+
+} else {
+
+  document
+    .getElementById('adminName')
+    .textContent =
+
+    '👤 ' +
+    adminSession.username;
+
+}
 
   // ---- Theme ----
   const themeToggle = document.getElementById('themeToggle');
@@ -756,7 +770,17 @@
     document.getElementById('overlay').classList.toggle('show', open);
   }
 
-  function logout(){ sessionStorage.removeItem('dqa_admin'); window.top.location.href = "index.html"; }
+  function logout() {
+
+  sessionStorage.removeItem(
+    'dqa_admin'
+  );
+
+  window.location.replace(
+    "index.html"
+  );
+
+}
 
   function toast(msg, type){
     const t = document.getElementById('toast');
