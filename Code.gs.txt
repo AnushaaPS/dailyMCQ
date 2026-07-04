@@ -186,6 +186,56 @@ function doPost(e) {
 
   );
 
+    case "getAdminLiveLeaderboard":
+
+    return jsonResponse(
+
+      getAdminLiveLeaderboard(
+
+        body.dept,
+
+        body.year,
+
+        body.section
+
+      )
+
+    );
+
+
+  case "getAdminLeaderboard":
+
+  return jsonResponse(
+
+    getAdminLeaderboard(
+
+      body.period,
+
+      body.dept,
+
+      body.year,
+
+      body.section
+
+    )
+
+  );
+
+
+case "getAdminStudentReport":
+
+  return jsonResponse(
+
+    getAdminStudentReport(
+
+      body.rollNo,
+
+      body.period
+
+    )
+
+  );
+
   case "getMonthlyActivity":
     return jsonResponse(
       getMonthlyActivity(
@@ -517,6 +567,17 @@ function todayStr_() {
   return Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'Asia/Kolkata', 'yyyy-MM-dd');
 }
 
+function isPublishedResultDate_(dateValue) {
+
+  return (
+
+    fmtDate_(dateValue) <
+    todayStr_()
+
+  );
+
+}
+
 function isTestAvailableToday_() {
 
   const tz =
@@ -534,10 +595,7 @@ function isTestAvailableToday_() {
     );
 
   // Full-day test availability
-  return (
-    currentTime >= '00:00' &&
-    currentTime <= '23:49'
-  );
+  return true;
 
 }
 
@@ -595,8 +653,28 @@ function getMonthlyActivity(rollNo, year, month) {
   const m = month || (now.getMonth() + 1);
   const tz = Session.getScriptTimeZone() || 'Asia/Kolkata';
 
-  const responses = sheetToObjects_(sheet_(SHEET.RESPONSES))
-    .filter(r => String(r.RollNo).trim().toLowerCase() === String(rollNo).trim().toLowerCase());
+  const responses =
+  sheetToObjects_(
+    sheet_(SHEET.RESPONSES)
+  )
+  .filter(r =>
+
+    String(r.RollNo || "")
+      .trim()
+      .toLowerCase() ===
+
+    String(rollNo || "")
+      .trim()
+      .toLowerCase()
+
+  )
+  .filter(r =>
+
+    isPublishedResultDate_(
+      r.Date
+    )
+
+  );
   const map = {};
   responses.forEach(r => {
     const d = fmtDate_(r.Date);
@@ -1269,9 +1347,17 @@ function addQuestion(data) {
  * (i.e. from 12:00 AM the day after it was asked).
  */
 function isRevealed_(q) {
-  const manual = (q.Revealed === true || String(q.Revealed).trim().toUpperCase() === 'TRUE');
-  const auto = fmtDate_(q.Date) < todayStr_();
-  return manual || auto;
+
+  return (
+
+    q.Revealed === true ||
+
+    String(q.Revealed || "")
+      .trim()
+      .toUpperCase() === "TRUE"
+
+  );
+
 }
 
 function getQuestionsByDate(
@@ -1671,9 +1757,6 @@ function getTodayTestInfo(rollNo) {
   const today =
     todayStr_();
 
-    const testAvailable =
-    isTestAvailableToday_();
-
 
   const rollKey =
     String(rollNo || '')
@@ -1695,42 +1778,6 @@ function getTodayTestInfo(rollNo) {
         .toLowerCase() === rollKey
 
     );
-
-
-    if (!testAvailable) {
-
-    return {
-
-      success: true,
-
-      date: today,
-
-      dept: studentDept,
-
-      year: studentYear,
-
-      totalQuestions:
-        questions.length,
-
-      attempted:
-        attemptedQids.length,
-
-      remaining: 0,
-
-      completed: false,
-
-      violated: false,
-
-      testClosed: true,
-
-      message:
-        "Today's test window has closed.",
-
-      questions: []
-
-    };
-
-  }
 
 
   const studentDept =
@@ -2016,7 +2063,14 @@ if (
   respSh.appendRow([respId, data.rollNo, data.qid, fmtDate_(q.Date), data.selected || '', isCorrect,
     data.timeTaken || 0, marks, new Date()]);
   const revealed = isRevealed_(q);
-  return { success: true, isCorrect: isCorrect, marks: marks, revealed: revealed, correctAnswer: revealed ? q.Correct : null };
+  return {
+
+  success: true,
+
+  message:
+    "Answer submitted successfully"
+
+};
 }
 
 /**********************************************************************
@@ -2078,7 +2132,8 @@ function getLeaderboard(
 
     if (
       d < range.start ||
-      d > range.end
+      d > range.end || 
+      !isPublishedResultDate_(r.Date)
     ) {
 
       return;
@@ -2256,30 +2311,911 @@ function getLeaderboard(
 
 }
 
-function getStudentReport(rollNo, period) {
-  const range = periodRange_(period || 'all');
-  const responses = sheetToObjects_(sheet_(SHEET.RESPONSES))
-    .filter(r => String(r.RollNo).trim().toLowerCase() === String(rollNo).trim().toLowerCase())
-    .filter(r => { const d = fmtDate_(r.Date); return d >= range.start && d <= range.end; })
-    .sort((a, b) => fmtDate_(a.Date).localeCompare(fmtDate_(b.Date)));
+function getAdminLeaderboard(
+  period,
+  dept,
+  year,
+  section
+) {
 
-  const totalMarks = responses.reduce((s, r) => s + Number(r.Marks || 0), 0);
-  const correct = responses.filter(r => r.IsCorrect === true || r.IsCorrect === 'TRUE').length;
+  const range =
+    periodRange_(
+      period || "all"
+    );
 
-  const leaderboard = getLeaderboard(period);
-  const me = leaderboard.find(s => String(s.rollNo).trim().toLowerCase() === String(rollNo).trim().toLowerCase());
+
+  const students =
+    sheetToObjects_(
+      sheet_(SHEET.STUDENTS)
+    );
+
+
+  const responses =
+    sheetToObjects_(
+      sheet_(SHEET.RESPONSES)
+    );
+
+
+  const scoreMap = {};
+
+
+  responses.forEach(r => {
+
+    const d =
+      fmtDate_(r.Date);
+
+
+    // ADMIN LIVE:
+    // Date range only.
+    // No isPublishedResultDate_ restriction.
+
+    if (
+      d < range.start ||
+      d > range.end
+    ) {
+
+      return;
+
+    }
+
+
+    const key =
+      String(r.RollNo || "")
+        .trim()
+        .toLowerCase();
+
+
+    if (!key) {
+
+      return;
+
+    }
+
+
+    if (!scoreMap[key]) {
+
+      scoreMap[key] = {
+
+        marks: 0,
+
+        attempted: 0,
+
+        correct: 0
+
+      };
+
+    }
+
+
+    scoreMap[key].marks +=
+      Number(r.Marks || 0);
+
+
+    scoreMap[key].attempted += 1;
+
+
+    if (
+
+      r.IsCorrect === true ||
+
+      String(r.IsCorrect || "")
+        .trim()
+        .toUpperCase() === "TRUE"
+
+    ) {
+
+      scoreMap[key].correct += 1;
+
+    }
+
+  });
+
+
+  let list =
+    students
+
+      .map(s => {
+
+        const key =
+          String(s.RollNo || "")
+            .trim()
+            .toLowerCase();
+
+
+        const sc =
+          scoreMap[key];
+
+
+        // Do not rank students with no attempt
+        // in the selected period.
+
+        if (!sc) {
+
+          return null;
+
+        }
+
+
+        return {
+
+          rollNo:
+            s.RollNo,
+
+          name:
+            s.Name,
+
+          dept:
+            s.Dept,
+
+          year:
+            s.Year,
+
+          section:
+            s.Section,
+
+          marks:
+            sc.marks,
+
+          attempted:
+            sc.attempted,
+
+          correct:
+            sc.correct
+
+        };
+
+      })
+
+      .filter(Boolean);
+
+
+  if (dept) {
+
+    list =
+      list.filter(s =>
+
+        String(s.dept || "")
+          .trim()
+          .toUpperCase() ===
+
+        String(dept)
+          .trim()
+          .toUpperCase()
+
+      );
+
+  }
+
+
+  if (year) {
+
+    list =
+      list.filter(s =>
+
+        String(s.year) ===
+        String(year)
+
+      );
+
+  }
+
+
+  if (section) {
+
+    list =
+      list.filter(s =>
+
+        String(s.section || "")
+          .trim()
+          .toUpperCase() ===
+
+        String(section)
+          .trim()
+          .toUpperCase()
+
+      );
+
+  }
+
+
+  list.sort(
+
+    (a, b) =>
+
+      b.marks - a.marks
+
+      ||
+
+      b.correct - a.correct
+
+      ||
+
+      a.attempted - b.attempted
+
+  );
+
+
+  let currentRank = 0;
+
+  let previousMarks = null;
+
+  let previousCorrect = null;
+
+
+  list.forEach(
+    (student, index) => {
+
+
+      if (
+
+        student.marks !== previousMarks ||
+
+        student.correct !== previousCorrect
+
+      ) {
+
+        currentRank =
+          index + 1;
+
+      }
+
+
+      student.rank =
+        currentRank;
+
+
+      previousMarks =
+        student.marks;
+
+
+      previousCorrect =
+        student.correct;
+
+    }
+  );
+
+
+  return list;
+
+}
+
+function getAdminLiveLeaderboard(
+  dept,
+  year,
+  section
+) {
+
+  const today =
+    todayStr_();
+
+
+  const students =
+    sheetToObjects_(
+      sheet_(SHEET.STUDENTS)
+    );
+
+
+  const responses =
+    sheetToObjects_(
+      sheet_(SHEET.RESPONSES)
+    )
+    .filter(r =>
+
+      fmtDate_(r.Date) === today
+
+    );
+
+
+  const studentMap = {};
+
+
+  students.forEach(s => {
+
+    const key =
+      String(s.RollNo || "")
+        .trim()
+        .toLowerCase();
+
+
+    if (key) {
+
+      studentMap[key] = s;
+
+    }
+
+  });
+
+
+  const scoreMap = {};
+
+
+  responses.forEach(r => {
+
+    const key =
+      String(r.RollNo || "")
+        .trim()
+        .toLowerCase();
+
+
+    if (!key) {
+
+      return;
+
+    }
+
+
+    if (!scoreMap[key]) {
+
+      scoreMap[key] = {
+
+        marks: 0,
+
+        attempted: 0,
+
+        correct: 0
+
+      };
+
+    }
+
+
+    scoreMap[key].marks +=
+      Number(r.Marks || 0);
+
+
+    scoreMap[key].attempted +=
+      1;
+
+
+    const isCorrect =
+
+      r.IsCorrect === true ||
+
+      String(r.IsCorrect || "")
+        .trim()
+        .toUpperCase() === "TRUE";
+
+
+    if (isCorrect) {
+
+      scoreMap[key].correct +=
+        1;
+
+    }
+
+  });
+
+
+  let list = [];
+
+
+  Object.keys(scoreMap)
+    .forEach(key => {
+
+
+      const student =
+        studentMap[key];
+
+
+      if (!student) {
+
+        return;
+
+      }
+
+
+      const score =
+        scoreMap[key];
+
+
+      list.push({
+
+        rollNo:
+          student.RollNo,
+
+        name:
+          student.Name,
+
+        dept:
+          student.Dept,
+
+        year:
+          student.Year,
+
+        section:
+          student.Section,
+
+        marks:
+          score.marks,
+
+        attempted:
+          score.attempted,
+
+        correct:
+          score.correct
+
+      });
+
+    });
+
+
+  if (dept) {
+
+    list =
+      list.filter(s =>
+
+        String(s.dept || "")
+          .trim()
+          .toUpperCase() ===
+
+        String(dept || "")
+          .trim()
+          .toUpperCase()
+
+      );
+
+  }
+
+
+  if (year) {
+
+    list =
+      list.filter(s =>
+
+        String(s.year || "")
+          .trim() ===
+
+        String(year || "")
+          .trim()
+
+      );
+
+  }
+
+
+  if (section) {
+
+    list =
+      list.filter(s =>
+
+        String(s.section || "")
+          .trim()
+          .toUpperCase() ===
+
+        String(section || "")
+          .trim()
+          .toUpperCase()
+
+      );
+
+  }
+
+
+  list.sort(
+
+    (a, b) =>
+
+      b.marks - a.marks
+
+      ||
+
+      b.correct - a.correct
+
+      ||
+
+      a.attempted - b.attempted
+
+  );
+
+
+  let rank = 0;
+
+  let previousMarks = null;
+
+  let previousCorrect = null;
+
+
+  list.forEach(
+    (student, index) => {
+
+
+      if (
+
+        student.marks !== previousMarks ||
+
+        student.correct !== previousCorrect
+
+      ) {
+
+        rank =
+          index + 1;
+
+      }
+
+
+      student.rank =
+        rank;
+
+
+      previousMarks =
+        student.marks;
+
+
+      previousCorrect =
+        student.correct;
+
+    }
+  );
+
+
+  return list;
+
+}
+
+function getStudentReport(
+  rollNo,
+  period
+) {
+
+  const range =
+    periodRange_(
+      period || "all"
+    );
+
+
+  const responses =
+
+    sheetToObjects_(
+      sheet_(
+        SHEET.RESPONSES
+      )
+    )
+
+    .filter(r =>
+
+      String(r.RollNo || "")
+        .trim()
+        .toLowerCase() ===
+
+      String(rollNo || "")
+        .trim()
+        .toLowerCase()
+
+    )
+
+    .filter(r => {
+
+      const date =
+        fmtDate_(r.Date);
+
+
+      return (
+
+        date >= range.start &&
+
+        date <= range.end &&
+
+        isPublishedResultDate_(
+          r.Date
+        )
+
+      );
+
+    })
+
+    .sort(
+      (a, b) =>
+
+        fmtDate_(a.Date)
+          .localeCompare(
+            fmtDate_(b.Date)
+          )
+    );
+
+
+  const totalMarks =
+
+    responses.reduce(
+
+      (sum, r) =>
+
+        sum +
+        Number(
+          r.Marks || 0
+        ),
+
+      0
+
+    );
+
+
+  const correct =
+
+    responses.filter(r =>
+
+      r.IsCorrect === true ||
+
+      String(r.IsCorrect || "")
+        .trim()
+        .toUpperCase() === "TRUE"
+
+    ).length;
+
+
+  const leaderboard =
+
+    getLeaderboard(
+      period
+    );
+
+
+  const me =
+
+    leaderboard.find(s =>
+
+      String(s.rollNo || "")
+        .trim()
+        .toLowerCase() ===
+
+      String(rollNo || "")
+        .trim()
+        .toLowerCase()
+
+    );
+
 
   return {
-    totalAttempted: responses.length,
-    correct: correct,
-    totalMarks: totalMarks,
-    rank: me ? me.rank : null,
-    totalStudents: leaderboard.length,
-    history: responses.map(r => ({
-      date: fmtDate_(r.Date), qid: r.QID, selected: r.Selected,
-      isCorrect: r.IsCorrect, marks: r.Marks, timeTaken: r.TimeTaken
-    }))
+
+    totalAttempted:
+      responses.length,
+
+    correct:
+      correct,
+
+    totalMarks:
+      totalMarks,
+
+    rank:
+      me
+        ? me.rank
+        : null,
+
+    totalStudents:
+      leaderboard.length,
+
+    history:
+
+      responses.map(r => ({
+
+        date:
+          fmtDate_(r.Date),
+
+        qid:
+          r.QID,
+
+        selected:
+          r.Selected,
+
+        isCorrect:
+          r.IsCorrect,
+
+        marks:
+          r.Marks,
+
+        timeTaken:
+          r.TimeTaken
+
+      }))
+
   };
+
+}
+
+function getAdminStudentReport(
+  rollNo,
+  period
+) {
+
+  const range =
+    periodRange_(
+      period || "all"
+    );
+
+
+  const rollKey =
+    String(rollNo || "")
+      .trim()
+      .toLowerCase();
+
+
+  const students =
+    sheetToObjects_(
+      sheet_(SHEET.STUDENTS)
+    );
+
+
+  const student =
+    students.find(s =>
+
+      String(s.RollNo || "")
+        .trim()
+        .toLowerCase() === rollKey
+
+    );
+
+
+  if (!student) {
+
+    return {
+
+      success: false,
+
+      message:
+        "Student not found"
+
+    };
+
+  }
+
+
+  const responses =
+
+    sheetToObjects_(
+      sheet_(SHEET.RESPONSES)
+    )
+
+    .filter(r =>
+
+      String(r.RollNo || "")
+        .trim()
+        .toLowerCase() === rollKey
+
+    )
+
+    .filter(r => {
+
+      const date =
+        fmtDate_(r.Date);
+
+
+      // ADMIN LIVE:
+      // Today's result is included.
+
+      return (
+
+        date >= range.start &&
+
+        date <= range.end
+
+      );
+
+    })
+
+    .sort(
+      (a, b) =>
+
+        fmtDate_(a.Date)
+          .localeCompare(
+            fmtDate_(b.Date)
+          )
+    );
+
+
+  const totalMarks =
+
+    responses.reduce(
+
+      (sum, r) =>
+
+        sum +
+        Number(r.Marks || 0),
+
+      0
+
+    );
+
+
+  const correct =
+
+    responses.filter(r =>
+
+      r.IsCorrect === true ||
+
+      String(r.IsCorrect || "")
+        .trim()
+        .toUpperCase() === "TRUE"
+
+    ).length;
+
+
+  const leaderboard =
+
+    getAdminLeaderboard(
+
+      period,
+
+      "",
+
+      "",
+
+      ""
+
+    );
+
+
+  const me =
+
+    leaderboard.find(s =>
+
+      String(s.rollNo || "")
+        .trim()
+        .toLowerCase() === rollKey
+
+    );
+
+
+  return {
+
+    success: true,
+
+    rollNo:
+      student.RollNo,
+
+    name:
+      student.Name,
+
+    dept:
+      student.Dept,
+
+    year:
+      student.Year,
+
+    section:
+      student.Section,
+
+    totalAttempted:
+      responses.length,
+
+    correct:
+      correct,
+
+    totalMarks:
+      totalMarks,
+
+    rank:
+      me
+        ? me.rank
+        : null,
+
+    totalStudents:
+      leaderboard.length,
+
+    history:
+
+      responses.map(r => ({
+
+        date:
+          fmtDate_(r.Date),
+
+        qid:
+          r.QID,
+
+        selected:
+          r.Selected,
+
+        isCorrect:
+          r.IsCorrect,
+
+        marks:
+          r.Marks,
+
+        timeTaken:
+          r.TimeTaken
+
+      }))
+
+  };
+
 }
 
 /**
@@ -2287,28 +3223,152 @@ function getStudentReport(rollNo, period) {
  * correct option included ONLY for questions whose answer key is currently
  * revealed (manually by admin, or automatically once the day has passed).
  */
-function getAnswerKey(rollNo, period) {
-  const range = periodRange_(period || 'all');
-  const responses = sheetToObjects_(sheet_(SHEET.RESPONSES))
-    .filter(r => String(r.RollNo).trim().toLowerCase() === String(rollNo).trim().toLowerCase())
-    .filter(r => { const d = fmtDate_(r.Date); return d >= range.start && d <= range.end; });
+function getAnswerKey(
+  rollNo,
+  period
+) {
 
-  const questions = sheetToObjects_(sheet_(SHEET.QUESTIONS));
+  const range =
+
+    periodRange_(
+      period || "all"
+    );
+
+
+  const responses =
+
+    sheetToObjects_(
+      sheet_(
+        SHEET.RESPONSES
+      )
+    )
+
+    .filter(r =>
+
+      String(r.RollNo || "")
+        .trim()
+        .toLowerCase() ===
+
+      String(rollNo || "")
+        .trim()
+        .toLowerCase()
+
+    )
+
+    .filter(r => {
+
+      const date =
+        fmtDate_(r.Date);
+
+
+      return (
+
+        date >= range.start &&
+
+        date <= range.end
+
+      );
+
+    });
+
+
+  const questions =
+
+    sheetToObjects_(
+      sheet_(
+        SHEET.QUESTIONS
+      )
+    );
+
+
   const qMap = {};
-  questions.forEach(q => qMap[String(q.QID)] = q);
 
-  return responses.map(r => {
-    const q = qMap[String(r.QID)];
-    if (!q) return null;
-    const revealed = isRevealed_(q);
-    return {
-      date: fmtDate_(r.Date), qid: r.QID,
-      question: q.Question, optionA: q.OptionA, optionB: q.OptionB, optionC: q.OptionC, optionD: q.OptionD,
-      imageLink: q.ImageLink, marksPossible: q.Marks,
-      selected: r.Selected, isCorrect: (r.IsCorrect === true || r.IsCorrect === 'TRUE'), marksScored: r.Marks,
-      revealed: revealed, correctAnswer: revealed ? q.Correct : null
-    };
-  }).filter(Boolean).sort((a, b) => b.date.localeCompare(a.date));
+
+  questions.forEach(q => {
+
+    qMap[
+      String(q.QID)
+    ] = q;
+
+  });
+
+
+  return responses
+
+    .map(r => {
+
+
+      const q =
+
+        qMap[
+          String(r.QID)
+        ];
+
+
+      if (!q) {
+
+        return null;
+
+      }
+
+
+      const revealed =
+
+        isRevealed_(q);
+
+
+      return {
+
+        date:
+          fmtDate_(r.Date),
+
+        qid:
+          r.QID,
+
+        question:
+          q.Question,
+
+        optionA:
+          q.OptionA,
+
+        optionB:
+          q.OptionB,
+
+        optionC:
+          q.OptionC,
+
+        optionD:
+          q.OptionD,
+
+        imageLink:
+          q.ImageLink,
+
+        selected:
+          r.Selected || "",
+
+        revealed:
+          revealed,
+
+        correctAnswer:
+
+          revealed
+            ? q.Correct
+            : null
+
+      };
+
+    })
+
+    .filter(Boolean)
+
+    .sort(
+      (a, b) =>
+
+        b.date.localeCompare(
+          a.date
+        )
+    );
+
 }
 
 function getDashboardStats() {
@@ -2336,99 +3396,74 @@ function getAbsentees(
   section
 ) {
 
+  const dateKey =
+    String(date || "")
+      .trim();
+
+
+  if (!dateKey) {
+
+    return [];
+
+  }
+
+
   const students =
     sheetToObjects_(
       sheet_(SHEET.STUDENTS)
     );
 
 
-  const questions =
-    sheetToObjects_(
-      sheet_(SHEET.QUESTIONS)
-    )
-
-      .filter(q =>
-
-        fmtDate_(q.Date) === date
-
-      );
-
-
   const responses =
     sheetToObjects_(
       sheet_(SHEET.RESPONSES)
     )
+    .filter(r =>
 
-      .filter(r =>
+      fmtDate_(r.Date) === dateKey
 
-        fmtDate_(r.Date) === date
+    );
 
+
+  /*
+   * Students who have at least
+   * one response on selected date
+   */
+
+  const attendedRolls =
+    new Set();
+
+
+  responses.forEach(r => {
+
+    const rollKey =
+      String(r.RollNo || "")
+        .trim()
+        .toLowerCase();
+
+
+    if (rollKey) {
+
+      attendedRolls.add(
+        rollKey
       );
 
+    }
 
-  const attemptedRolls =
-    new Set(
-
-      responses.map(r =>
-
-        String(r.RollNo)
-          .trim()
-          .toLowerCase()
-
-      )
-
-    );
+  });
 
 
-  const testGroups =
-    new Set(
-
-      questions.map(q =>
-
-        String(q.Dept || "")
-          .trim()
-          .toUpperCase()
-
-        +
-
-        "|"
-
-        +
-
-        String(q.Year || "")
-          .trim()
-
-      )
-
-    );
-
+  /*
+   * Start with all students
+   */
 
   let list =
-    students.filter(s => {
+    students.slice();
 
 
-      const groupKey =
-
-        String(s.Dept || "")
-          .trim()
-          .toUpperCase()
-
-        +
-
-        "|"
-
-        +
-
-        String(s.Year || "")
-          .trim();
-
-
-      return testGroups.has(
-        groupKey
-      );
-
-    });
-
+  /*
+   * Department filter
+   */
 
   if (dept) {
 
@@ -2439,7 +3474,7 @@ function getAbsentees(
           .trim()
           .toUpperCase() ===
 
-        String(dept)
+        String(dept || "")
           .trim()
           .toUpperCase()
 
@@ -2448,18 +3483,31 @@ function getAbsentees(
   }
 
 
+  /*
+   * Year filter
+   */
+
   if (year) {
 
     list =
       list.filter(s =>
 
-        String(s.Year) ===
-        String(year)
+        String(s.Year || "")
+          .trim()
+          .toUpperCase() ===
+
+        String(year || "")
+          .trim()
+          .toUpperCase()
 
       );
 
   }
 
+
+  /*
+   * Section filter
+   */
 
   if (section) {
 
@@ -2470,7 +3518,7 @@ function getAbsentees(
           .trim()
           .toUpperCase() ===
 
-        String(section)
+        String(section || "")
           .trim()
           .toUpperCase()
 
@@ -2479,19 +3527,28 @@ function getAbsentees(
   }
 
 
+  /*
+   * Student is absent when
+   * there is NO response for
+   * selected date
+   */
+
   return list
 
-    .filter(s =>
+    .filter(s => {
 
-      !attemptedRolls.has(
-
-        String(s.RollNo)
+      const rollKey =
+        String(s.RollNo || "")
           .trim()
-          .toLowerCase()
+          .toLowerCase();
 
-      )
 
-    )
+      return !attendedRolls.has(
+        rollKey
+      );
+
+    })
+
 
     .map(s => ({
 
@@ -2695,7 +3752,7 @@ function generateTopperPdf(
 ) {
 
   const list =
-    getLeaderboard(
+    getAdminLeaderboard(
 
       period,
 
