@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Admin — Daily Question</title>
 <base target="_top">
 <script>
@@ -12,6 +13,94 @@
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js" id="mathjax-script" async></script>
 <style>
+  @media(max-width:600px){
+
+  .content{
+    padding:14px;
+  }
+
+  .topbar{
+    padding:12px 14px;
+  }
+
+  .topbar h2{
+    font-size:17px;
+  }
+
+  .top-actions .muted{
+    display:none;
+  }
+
+  .grid.cols-4{
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+
+  .stat-card{
+    padding:14px 12px;
+  }
+
+  .stat-card .num{
+    font-size:23px;
+  }
+
+  .card{
+    padding:16px;
+    border-radius:14px;
+  }
+
+  .row,
+  .row3{
+    grid-template-columns:1fr;
+    gap:0;
+  }
+
+  .table-wrap{
+    width:100%;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+
+  table{
+    min-width:650px;
+  }
+
+  th,
+  td{
+    white-space:nowrap;
+    padding:9px 8px;
+  }
+
+  .toolbar{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+
+  .toolbar .btn{
+    width:100%;
+  }
+
+  .pill{
+    flex-wrap:wrap;
+  }
+
+  .modal-bg{
+    padding:10px;
+  }
+
+  .modal{
+    padding:20px 16px;
+    max-height:92vh;
+  }
+
+  .toast{
+    left:14px;
+    right:14px;
+    bottom:14px;
+    max-width:none;
+  }
+
+}
   :root{
     --purple:#7C3AED; --purple-dark:#5B21B6; --pink:#DB2777; --pink-light:#F472B6;
     --grad: linear-gradient(135deg,#7C3AED 0%,#DB2777 100%);
