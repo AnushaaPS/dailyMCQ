@@ -258,7 +258,7 @@
           <div class="stat-card"><div class="num" id="s4">–</div><div class="label">Attempted Today</div></div>
         </div>
         <div class="card" style="margin-top:18px;">
-          <h3>🏆 Today's Quick Leaderboard (Top 5)</h3>
+          <h3>🏆 Today's Live Leaderboard (Top 5)</h3>
           <div class="table-wrap"><table id="quickLb"><thead><tr><th>Rank</th><th>Roll No</th><th>Name</th><th>Marks</th></tr></thead><tbody></tbody></table></div>
         </div>
       </div>
@@ -729,8 +729,8 @@
 
 <script>
   // ⚠️ PASTE YOUR DEPLOYED WEB APP URL BELOW (Deploy → Manage deployments → copy "Web app" URL)
-    const BASE_URL = "https://script.google.com/macros/s/AKfycbyQDV9OrxLSc0MKLJ8AdT3B8DzPJv3tHKsdQZz1gVCZwBPQ6rHwEIVJR1WNGI5ih11_Dw/exec";
-    const API_URL = "https://script.google.com/macros/s/AKfycbyQDV9OrxLSc0MKLJ8AdT3B8DzPJv3tHKsdQZz1gVCZwBPQ6rHwEIVJR1WNGI5ih11_Dw/exec";
+    const BASE_URL = "https://script.google.com/macros/s/AKfycbxq4ZYyAF6dmEokdsVJOimnr74uKijaqsIVjPEofaxECaYTFWqi2cJbrz6QIegDXhFeTA/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbxq4ZYyAF6dmEokdsVJOimnr74uKijaqsIVjPEofaxECaYTFWqi2cJbrz6QIegDXhFeTA/exec";
   let allStudents = [], allQuestions = [], distinctYS = {years:[], sections:[]}, lbPeriod = 'day', lastFocused = 'qText';
 
   // ---- Guard ----
@@ -826,17 +826,16 @@
         document.getElementById("s4").textContent = stats.attemptedToday;
 
 
-        // Today's Leaderboard
-        response = await fetch(API_URL, {
-            method: "POST",
-            body: JSON.stringify({
-                action: "getLeaderboard",
-                period: "day",
-                year: "",
-                section: ""
-            })
-        });
-
+        /// Today's LIVE Leaderboard — Admin Only
+response = await fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({
+        action: "getAdminLiveLeaderboard",
+        dept: "",
+        year: "",
+        section: ""
+    })
+});
         const list = await response.json();
 
         const tbody = document.querySelector("#quickLb tbody");
@@ -2222,7 +2221,7 @@ async function renderLeaderboard() {
         body: JSON.stringify({
 
           action:
-            "getLeaderboard",
+            "getAdminLeaderboard",
 
           period:
             lbPeriod,
@@ -2616,7 +2615,7 @@ async function lookupStudent() {
     const response = await fetch(API_URL, {
       method: "POST",
       body: JSON.stringify({
-        action: "getStudentReport",
+        action: "getAdminStudentReport",
         rollNo: roll,
         period: period
       })
