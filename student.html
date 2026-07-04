@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Student — Daily Question</title>
 <base target="_top">
 <script>
@@ -12,6 +13,127 @@
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js" id="mathjax-script" async></script>
 <style>
+  @media(max-width:600px){
+
+  .content{
+    padding:14px;
+  }
+
+  .topbar{
+    padding:12px 14px;
+  }
+
+  .topbar h2{
+    font-size:17px;
+  }
+
+  .grid.cols-4{
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+
+  .stat-card{
+    padding:14px 10px;
+  }
+
+  .stat-card .num{
+    font-size:22px;
+  }
+
+  .hero{
+    padding:22px 18px;
+    border-radius:16px;
+  }
+
+  .hero h2{
+    font-size:19px;
+  }
+
+  .card{
+    padding:16px;
+    border-radius:14px;
+  }
+
+  .test-top{
+    padding:10px 14px;
+  }
+
+  .timer-ring{
+    width:48px;
+    height:48px;
+    font-size:14px;
+    border-width:4px;
+  }
+
+  .test-body{
+    padding:12px;
+    align-items:flex-start;
+    overflow-y:auto;
+  }
+
+  .q-card{
+    padding:18px 14px;
+    border-radius:15px;
+    margin-top:10px;
+  }
+
+  .q-text{
+    font-size:16px;
+    line-height:1.5;
+    margin-bottom:18px;
+  }
+
+  .opt{
+    padding:13px 12px;
+    font-size:14px;
+    min-height:48px;
+  }
+
+  .rich-table{
+    display:block;
+    width:100%;
+    overflow-x:auto;
+    white-space:nowrap;
+  }
+
+  .modal-bg{
+    padding:10px;
+  }
+
+  .modal{
+    padding:20px 16px;
+    max-height:92vh;
+  }
+
+  .instructions-modal{
+    max-height:94vh;
+  }
+
+  .instructions-header{
+    padding:18px 16px 10px;
+  }
+
+  .instructions-scroll{
+    padding:10px 16px 16px;
+  }
+
+  .instructions-actions{
+    padding:12px 16px 16px;
+  }
+
+  .instructions-actions .btn{
+    padding:11px 8px;
+    font-size:13px;
+  }
+
+  .toast{
+    left:14px;
+    right:14px;
+    bottom:14px;
+    max-width:none;
+  }
+
+}
   :root{
     --purple:#7C3AED; --purple-dark:#5B21B6; --pink:#DB2777; --pink-light:#F472B6;
     --grad: linear-gradient(135deg,#7C3AED 0%,#DB2777 100%);
