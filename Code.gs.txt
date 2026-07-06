@@ -1,0 +1,4421 @@
+/**********************************************************************
+ * DAILY ONE QUESTION — ASSESSMENT PLATFORM
+ * Google Apps Script backend
+ *
+ * SHEET STRUCTURE (created automatically on first run of setup()):
+ *   Students  : RollNo | Name | Dept | Year | Section | Password | CreatedDate
+ *   Admin     : Username | Password
+ *   Questions : QID | Date | Question | OptionA | OptionB | OptionC | OptionD |
+ *               Correct | ImageLink | TimeLimit | Marks | CreatedDate
+ *   Responses : RespID | RollNo | QID | Date | Selected | IsCorrect |
+ *               TimeTaken | Marks | Timestamp
+ **********************************************************************/
+
+/*************************************************
+  ENABLE CORS
+*************************************************/
+function setCORS(output){
+
+  return output
+    .setMimeType(ContentService.MimeType.JSON);
+
+}
+
+
+function doPost(e) {
+  try {
+
+    const body = JSON.parse(e.postData.contents);
+
+    switch (body.action) {
+
+  /**************** LOGIN ****************/
+
+  case "login":
+    return jsonResponse(
+      login(body.identifier, body.password)
+    );
+
+  case "studentForgotPassword":
+    return jsonResponse(
+      studentForgotPassword(body.rollNo, body.name)
+    );
+
+  case "changeStudentPassword":
+    return jsonResponse(
+      changeStudentPassword(
+        body.rollNo,
+        body.oldPassword,
+        body.newPassword
+      )
+    );
+
+  /**************** STUDENTS ****************/
+
+  case "addStudent":
+    return jsonResponse(addStudent(body.data));
+
+  case "bulkAddStudents":
+    return jsonResponse(
+      bulkAddStudents(body.students)
+    );
+
+  case "getAllStudents":
+    return jsonResponse(
+      getAllStudents()
+    );
+
+  case "deleteStudent":
+    return jsonResponse(
+      deleteStudent(body.rollNo)
+    );
+
+  case "resetStudentPassword":
+    return jsonResponse(
+      resetStudentPassword(body.rollNo)
+    );
+
+  case "getDistinctYearsSections":
+    return jsonResponse(
+      getDistinctYearsSections()
+    );
+
+  /**************** QUESTIONS ****************/
+
+  case "addQuestion":
+    return jsonResponse(
+      addQuestion(body.data)
+    );
+
+  case "getAllQuestions":
+    return jsonResponse(
+      getAllQuestions()
+    );
+
+  case "getQuestionsByDate":
+    return jsonResponse(
+      getQuestionsByDate(body.date)
+    );
+
+  case "deleteQuestion":
+    return jsonResponse(
+      deleteQuestion(body.qid)
+    );
+
+  case "toggleQuestionReveal":
+    return jsonResponse(
+      toggleQuestionReveal(
+        body.qid,
+        body.revealed
+      )
+    );
+
+  case "setDateReveal":
+
+  return jsonResponse(
+
+    setDateReveal(
+
+      body.date,
+
+      body.dept,
+
+      body.year,
+
+      body.revealed
+
+    )
+
+  );
+
+  /**************** TEST ****************/
+
+  case "recordViolation":
+  return jsonResponse(
+    recordViolation(body.data)
+  );
+
+  case "getTodayTestInfo":
+    return jsonResponse(
+      getTodayTestInfo(body.rollNo)
+    );
+
+  case "submitAnswer":
+    return jsonResponse(
+      submitAnswer(body.data)
+    );
+
+  case "getAnswerKey":
+    return jsonResponse(
+      getAnswerKey(
+        body.rollNo,
+        body.period
+      )
+    );
+
+  /**************** DASHBOARD ****************/
+
+  case "getDashboardStats":
+    return jsonResponse(
+      getDashboardStats()
+    );
+
+  case "getStudentReport":
+    return jsonResponse(
+      getStudentReport(
+        body.rollNo,
+        body.period
+      )
+    );
+
+  case "getLeaderboard":
+
+  return jsonResponse(
+
+    getLeaderboard(
+
+      body.period,
+
+      body.dept,
+
+      body.year,
+
+      body.section
+
+    )
+
+  );
+
+    case "getAdminLiveLeaderboard":
+
+    return jsonResponse(
+
+      getAdminLiveLeaderboard(
+
+        body.dept,
+
+        body.year,
+
+        body.section
+
+      )
+
+    );
+
+
+  case "getAdminLeaderboard":
+
+  return jsonResponse(
+
+    getAdminLeaderboard(
+
+      body.period,
+
+      body.dept,
+
+      body.year,
+
+      body.section
+
+    )
+
+  );
+
+
+case "getAdminStudentReport":
+
+  return jsonResponse(
+
+    getAdminStudentReport(
+
+      body.rollNo,
+
+      body.period
+
+    )
+
+  );
+
+  case "getMonthlyActivity":
+    return jsonResponse(
+      getMonthlyActivity(
+        body.rollNo,
+        body.year,
+        body.month
+      )
+    );
+
+  case "getStudentStreak":
+    return jsonResponse(
+      getStudentStreak(body.rollNo)
+    );
+
+  /**************** REPORTS ****************/
+
+  case "getAbsentees":
+
+  return jsonResponse(
+
+    getAbsentees(
+
+      body.date,
+
+      body.dept,
+
+      body.year,
+
+      body.section
+
+    )
+
+  );
+
+  case "generateAbsenteePdf":
+
+  return jsonResponse(
+
+    generateAbsenteePdf(
+
+      body.date,
+
+      body.dept,
+
+      body.year,
+
+      body.section
+
+    )
+
+  );
+
+  case "generateTopperPdf":
+
+  return jsonResponse(
+
+    generateTopperPdf(
+
+      body.period,
+
+      body.dept,
+
+      body.year,
+
+      body.section
+
+    )
+
+  );
+
+  default:
+    return jsonResponse({
+      success: false,
+      message: "Unknown Action : " + body.action
+    });
+
+}
+
+  } catch(err){
+
+    return jsonResponse({
+      success:false,
+      message:err.toString()
+    });
+
+  }
+}
+
+function doGet(e) {
+  return ContentService
+    .createTextOutput(
+      JSON.stringify({
+        success: true,
+        message: "Daily Question API is running"
+      })
+    )
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function jsonResponse(obj){
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+const SHEET = {
+  STUDENTS: 'Students',
+  ADMIN: 'Admin',
+  QUESTIONS: 'Questions',
+  RESPONSES: 'Responses',
+  VIOLATIONS: 'Violations'
+};
+
+const DEFAULT_STUDENT_PASSWORD = "student@123";
+
+function ss_() { return SpreadsheetApp.getActiveSpreadsheet(); }
+
+function sheet_(name) {
+  const ss = ss_();
+  let sh = ss.getSheetByName(name);
+  if (!sh) sh = ss.insertSheet(name);
+  return sh;
+}
+
+/** Run this ONCE manually from the Apps Script editor to build the sheets. */
+function setup() {
+  const students = sheet_(SHEET.STUDENTS);
+  if (students.getLastRow() === 0) {
+    students.appendRow(['RollNo', 'Name', 'Dept', 'Year', 'Section', 'Password', 'CreatedDate']);
+  }
+  const admin = sheet_(SHEET.ADMIN);
+  if (admin.getLastRow() === 0) {
+    admin.appendRow(['Username', 'Password']);
+    admin.appendRow(['admin', 'admin123']);
+  }
+  const questions =
+  sheet_(SHEET.QUESTIONS);
+
+
+if (questions.getLastRow() === 0) {
+
+  questions.appendRow([
+
+    'QID',
+
+    'Dept',
+
+    'Year',
+
+    'Date',
+
+    'Question',
+
+    'OptionA',
+
+    'OptionB',
+
+    'OptionC',
+
+    'OptionD',
+
+    'Correct',
+
+    'ImageLink',
+
+    'TimeLimit',
+
+    'Marks',
+
+    'CreatedDate',
+
+    'Revealed'
+
+  ]);
+
+} else {
+
+  ensureQuestionColumns_();
+
+}
+  const responses = sheet_(SHEET.RESPONSES);
+  if (responses.getLastRow() === 0) {
+    responses.appendRow(['RespID', 'RollNo', 'QID', 'Date', 'Selected', 'IsCorrect',
+      'TimeTaken', 'Marks', 'Timestamp']);
+  }
+  const violations = sheet_(SHEET.VIOLATIONS);
+
+if (violations.getLastRow() === 0) {
+  violations.appendRow([
+    'ViolationID',
+    'RollNo',
+    'Date',
+    'ViolationType',
+    'ViolationLabel',
+    'QID',
+    'QuestionIndex',
+    'DetectedAt',
+    'Timestamp'
+  ]);
+}
+  return 'Setup complete';
+}
+
+/** Ensures the Questions sheet has a 'Revealed' column, for spreadsheets created before this feature existed. */
+function ensureQuestionColumns_() {
+
+  const sh =
+    sheet_(SHEET.QUESTIONS);
+
+
+  let headers =
+    sh
+      .getRange(
+        1,
+        1,
+        1,
+        Math.max(
+          sh.getLastColumn(),
+          1
+        )
+      )
+      .getValues()[0];
+
+
+  // Add Department before Date
+  if (
+    headers.indexOf("Dept") === -1
+  ) {
+
+    const dateCol =
+      headers.indexOf("Date") + 1;
+
+
+    sh.insertColumnBefore(dateCol);
+
+
+    sh
+      .getRange(
+        1,
+        dateCol
+      )
+      .setValue("Dept");
+
+  }
+
+
+  // Refresh headers
+  headers =
+    sh
+      .getRange(
+        1,
+        1,
+        1,
+        sh.getLastColumn()
+      )
+      .getValues()[0];
+
+
+  // Add Year before Date
+  if (
+    headers.indexOf("Year") === -1
+  ) {
+
+    const dateCol =
+      headers.indexOf("Date") + 1;
+
+
+    sh.insertColumnBefore(dateCol);
+
+
+    sh
+      .getRange(
+        1,
+        dateCol
+      )
+      .setValue("Year");
+
+  }
+
+
+  // Refresh headers
+  headers =
+    sh
+      .getRange(
+        1,
+        1,
+        1,
+        sh.getLastColumn()
+      )
+      .getValues()[0];
+
+
+  // Ensure Revealed column
+  if (
+    headers.indexOf("Revealed") === -1
+  ) {
+
+    sh
+      .getRange(
+        1,
+        sh.getLastColumn() + 1
+      )
+      .setValue("Revealed");
+
+  }
+
+}
+
+/**********************************************************************
+ * HELPERS
+ **********************************************************************/
+function sheetToObjects_(sh) {
+  const values = sh.getDataRange().getValues();
+  if (values.length < 2) return [];
+  const headers = values.shift();
+  return values.map(row => {
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = row[i]);
+    return obj;
+  });
+}
+
+function fmtDate_(d) {
+  if (typeof d === 'string') return d;
+  return Utilities.formatDate(new Date(d), Session.getScriptTimeZone() || 'Asia/Kolkata', 'yyyy-MM-dd');
+}
+
+function todayStr_() {
+  return Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'Asia/Kolkata', 'yyyy-MM-dd');
+}
+
+function isPublishedResultDate_(dateValue) {
+
+  return (
+
+    fmtDate_(dateValue) <
+    todayStr_()
+
+  );
+
+}
+
+function isTestAvailableToday_() {
+
+  const tz =
+    Session.getScriptTimeZone() ||
+    'Asia/Kolkata';
+
+  const now =
+    new Date();
+
+  const currentTime =
+    Utilities.formatDate(
+      now,
+      tz,
+      'HH:mm'
+    );
+
+  // Full-day test availability
+  return true;
+
+}
+
+function genPassword_(rollNo) {
+  const rand = Math.floor(100 + Math.random() * 900);
+  return String(rollNo).trim() + '@' + rand;
+}
+
+function newId_(prefix) {
+  return prefix + Utilities.getUuid().split('-')[0].toUpperCase();
+}
+
+/**********************************************************************
+ * STREAKS & ACTIVITY CALENDAR
+ **********************************************************************/
+function addDays_(dateStr, n) {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + n);
+  return Utilities.formatDate(d, Session.getScriptTimeZone() || 'Asia/Kolkata', 'yyyy-MM-dd');
+}
+
+function isNextDay_(d1, d2) {
+  const diff = (new Date(d2) - new Date(d1)) / (1000 * 60 * 60 * 24);
+  return diff === 1;
+}
+
+/** Current daily streak (consecutive days with at least one attempt) + best-ever streak. */
+function getStudentStreak(rollNo) {
+  const responses = sheetToObjects_(sheet_(SHEET.RESPONSES))
+    .filter(r => String(r.RollNo).trim().toLowerCase() === String(rollNo).trim().toLowerCase());
+  const dateSet = new Set(responses.map(r => fmtDate_(r.Date)));
+  const dates = Array.from(dateSet).sort();
+  if (dates.length === 0) return { current: 0, best: 0, totalActiveDays: 0 };
+
+  let best = 1, run = 1;
+  for (let i = 1; i < dates.length; i++) {
+    run = isNextDay_(dates[i - 1], dates[i]) ? run + 1 : 1;
+    if (run > best) best = run;
+  }
+
+  const today = todayStr_();
+  let current = 0;
+  let cursor = dateSet.has(today) ? today : addDays_(today, -1); // grace: ok if today just hasn't happened yet
+  while (dateSet.has(cursor)) {
+    current++;
+    cursor = addDays_(cursor, -1);
+  }
+  return { current: current, best: best, totalActiveDays: dates.length };
+}
+
+/** Per-day attempt/correct/marks breakdown for a given month, for the activity calendar. */
+function getMonthlyActivity(rollNo, year, month) {
+  const now = new Date();
+  const y = year || now.getFullYear();
+  const m = month || (now.getMonth() + 1);
+  const tz = Session.getScriptTimeZone() || 'Asia/Kolkata';
+
+  const responses =
+  sheetToObjects_(
+    sheet_(SHEET.RESPONSES)
+  )
+  .filter(r =>
+
+    String(r.RollNo || "")
+      .trim()
+      .toLowerCase() ===
+
+    String(rollNo || "")
+      .trim()
+      .toLowerCase()
+
+  )
+  .filter(r =>
+
+    isPublishedResultDate_(
+      r.Date
+    )
+
+  );
+  const map = {};
+  responses.forEach(r => {
+    const d = fmtDate_(r.Date);
+    const dy = new Date(d);
+    if (dy.getFullYear() === y && (dy.getMonth() + 1) === m) {
+      if (!map[d]) map[d] = { attempted: 0, correct: 0, marks: 0 };
+      map[d].attempted++;
+      if (r.IsCorrect === true || r.IsCorrect === 'TRUE') map[d].correct++;
+      map[d].marks += Number(r.Marks || 0);
+    }
+  });
+
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const days = [];
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = Utilities.formatDate(new Date(y, m - 1, day), tz, 'yyyy-MM-dd');
+    const info = map[dateStr] || { attempted: 0, correct: 0, marks: 0 };
+    days.push({ date: dateStr, day: day, attempted: info.attempted, correct: info.correct, marks: info.marks });
+  }
+  return { year: y, month: m, days: days };
+}
+
+/**********************************************************************
+ * AUTH
+ **********************************************************************/
+function adminLogin(username, password) {
+  const rows = sheetToObjects_(sheet_(SHEET.ADMIN));
+  const found = rows.find(r => String(r.Username).trim() === String(username).trim()
+    && String(r.Password).trim() === String(password).trim());
+  if (!found) return { success: false, message: 'Invalid admin credentials' };
+  return { success: true, role: 'admin', username: found.Username };
+}
+
+function studentLogin(rollNo, password) {
+  const rows = sheetToObjects_(sheet_(SHEET.STUDENTS));
+  const found = rows.find(r => String(r.RollNo).trim().toLowerCase() === String(rollNo).trim().toLowerCase()
+    && String(r.Password).trim() === String(password).trim());
+  if (!found) return { success: false, message: 'Invalid roll number or password' };
+  return {
+    success: true, role: 'student', rollNo: found.RollNo, name: found.Name,
+    dept: found.Dept, year: found.Year, section: found.Section
+  };
+}
+
+/**
+ * Unified login used by the single login form on the index page.
+ * Tries the Admin sheet first, then the Students sheet — the caller doesn't
+ * need to say which role they are; the credentials themselves decide it,
+ * and the page redirects based on the returned `role`.
+ */
+function login(identifier, password) {
+  const admin = adminLogin(identifier, password);
+  if (admin.success) return admin;
+
+  const student = studentLogin(identifier, password);
+  if (student.success) return student;
+
+  return { success: false, message: 'Invalid credentials. Check your Roll Number / Username and password.' };
+}
+
+function changeStudentPassword(rollNo, oldPassword, newPassword) {
+  const sh = sheet_(SHEET.STUDENTS);
+  const data = sh.getDataRange().getValues();
+  const headers = data[0];
+  const rollCol = headers.indexOf('RollNo');
+  const passCol = headers.indexOf('Password');
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][rollCol]).trim().toLowerCase() === String(rollNo).trim().toLowerCase()) {
+      if (String(data[i][passCol]).trim() !== String(oldPassword).trim()) {
+        return { success: false, message: 'Current password is incorrect' };
+      }
+      sh.getRange(i + 1, passCol + 1).setValue(newPassword);
+      return { success: true, message: 'Password updated successfully' };
+    }
+  }
+  return { success: false, message: 'Student not found' };
+}
+
+/**
+ * Self-service "Forgot Password" for students who are NOT logged in.
+ * Verifies identity using RollNo + Name (case-insensitive match against the Students sheet),
+ * then generates and stores a fresh password, returning it directly to the student.
+ * No email step is required, so this works out of the box with just the Students sheet.
+ */
+function studentForgotPassword(rollNo, name) {
+  const sh = sheet_(SHEET.STUDENTS);
+  const data = sh.getDataRange().getValues();
+  const headers = data[0];
+  const rollCol = headers.indexOf('RollNo');
+  const nameCol = headers.indexOf('Name');
+  const passCol = headers.indexOf('Password');
+
+  if (!rollNo || !name) return { success: false, message: 'Enter both Roll No and Name' };
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][rollCol]).trim().toLowerCase() === String(rollNo).trim().toLowerCase()) {
+      const sheetName = String(data[i][nameCol]).trim().toLowerCase();
+      if (sheetName !== String(name).trim().toLowerCase()) {
+        return { success: false, message: 'Roll No and Name do not match our records' };
+      }
+      const newPass = genPassword_(rollNo);
+      sh.getRange(i + 1, passCol + 1).setValue(newPass);
+      return { success: true, password: newPass, rollNo: data[i][rollCol] };
+    }
+  }
+  return { success: false, message: 'Roll No not found. Contact your admin.' };
+}
+
+/**********************************************************************
+ * STUDENT MANAGEMENT (ADMIN)
+ **********************************************************************/
+function addStudent(data) {
+
+  if (
+    !data ||
+    !String(data.rollNo || '').trim() ||
+    !String(data.name || '').trim() ||
+    !String(data.dept || '').trim() ||
+    !String(data.year || '').trim() ||
+    !String(data.section || '').trim()
+  ) {
+
+    return {
+      success: false,
+      message:
+        'All fields are mandatory: Roll No, Name, Department, Year and Section'
+    };
+
+  }
+
+
+  const sh =
+    sheet_(SHEET.STUDENTS);
+
+
+  const existing =
+    sheetToObjects_(sh);
+
+
+  const rollNo =
+    String(data.rollNo)
+      .trim();
+
+
+  const name =
+    String(data.name)
+      .trim();
+
+
+  const dept =
+    String(data.dept)
+      .trim()
+      .toUpperCase();
+
+
+  const year =
+    String(data.year)
+      .trim();
+
+
+  const section =
+    String(data.section)
+      .trim()
+      .toUpperCase();
+
+
+  // ============================================================
+  // DUPLICATE ROLL NUMBER CHECK
+  // ============================================================
+
+  if (
+    existing.some(r =>
+
+      String(r.RollNo || '')
+        .trim()
+        .toLowerCase() ===
+
+      rollNo.toLowerCase()
+
+    )
+  ) {
+
+    return {
+      success: false,
+      message: 'Roll number already exists'
+    };
+
+  }
+
+
+  // ============================================================
+  // DEFAULT STUDENT PASSWORD
+  // ============================================================
+
+  const password =
+    DEFAULT_STUDENT_PASSWORD;
+
+
+  // ============================================================
+  // STORE STUDENT
+  // ============================================================
+
+  sh.appendRow([
+
+    rollNo,
+
+    name,
+
+    dept,
+
+    year,
+
+    section,
+
+    password,
+
+    todayStr_()
+
+  ]);
+
+
+  return {
+
+    success: true,
+
+    password: password,
+
+    message:
+      'Student added successfully'
+
+  };
+
+}
+
+function bulkAddStudents(list) {
+
+  if (
+    !Array.isArray(list) ||
+    list.length === 0
+  ) {
+
+    return [{
+      success: false,
+      message: 'No student data provided'
+    }];
+
+  }
+
+
+  // ============================================================
+  // VALIDATE ALL BULK DATA BEFORE INSERT
+  // ============================================================
+
+  for (
+    let i = 0;
+    i < list.length;
+    i++
+  ) {
+
+    const data =
+      list[i];
+
+
+    if (
+      !data ||
+      !String(data.rollNo || '').trim() ||
+      !String(data.name || '').trim() ||
+      !String(data.dept || '').trim() ||
+      !String(data.year || '').trim() ||
+      !String(data.section || '').trim()
+    ) {
+
+      return [{
+
+        success: false,
+
+        message:
+          'Row ' +
+          (i + 1) +
+          ': All fields are mandatory'
+
+      }];
+
+    }
+
+  }
+
+
+  const sh =
+    sheet_(SHEET.STUDENTS);
+
+
+  const existing =
+    sheetToObjects_(sh)
+      .map(r =>
+
+        String(r.RollNo || '')
+          .trim()
+          .toLowerCase()
+
+      );
+
+
+  const incomingRolls = [];
+
+
+  // ============================================================
+  // CHECK DUPLICATES INSIDE BULK DATA
+  // ============================================================
+
+  for (
+    let i = 0;
+    i < list.length;
+    i++
+  ) {
+
+    const roll =
+
+      String(list[i].rollNo)
+        .trim()
+        .toLowerCase();
+
+
+    if (
+      incomingRolls.includes(roll)
+    ) {
+
+      return [{
+
+        success: false,
+
+        message:
+          'Row ' +
+          (i + 1) +
+          ': Duplicate Roll No in bulk data'
+
+      }];
+
+    }
+
+
+    incomingRolls.push(roll);
+
+  }
+
+
+  const results = [];
+
+
+  // ============================================================
+  // INSERT STUDENTS
+  // ============================================================
+
+  list.forEach(data => {
+
+
+    const rollNo =
+
+      String(data.rollNo)
+        .trim();
+
+
+    const name =
+
+      String(data.name)
+        .trim();
+
+
+    const dept =
+
+      String(data.dept)
+        .trim()
+        .toUpperCase();
+
+
+    const year =
+
+      String(data.year)
+        .trim();
+
+
+    const section =
+
+      String(data.section)
+        .trim()
+        .toUpperCase();
+
+
+    // ============================================================
+    // EXISTING STUDENT CHECK
+    // ============================================================
+
+    if (
+      existing.includes(
+        rollNo.toLowerCase()
+      )
+    ) {
+
+      results.push({
+
+        rollNo: rollNo,
+
+        success: false,
+
+        message:
+          'Already exists'
+
+      });
+
+
+      return;
+
+    }
+
+
+    // ============================================================
+    // DEFAULT PASSWORD
+    // ============================================================
+
+    const password =
+      DEFAULT_STUDENT_PASSWORD;
+
+
+    // ============================================================
+    // STORE STUDENT
+    // ============================================================
+
+    sh.appendRow([
+
+      rollNo,
+
+      name,
+
+      dept,
+
+      year,
+
+      section,
+
+      password,
+
+      todayStr_()
+
+    ]);
+
+
+    existing.push(
+      rollNo.toLowerCase()
+    );
+
+
+    results.push({
+
+      rollNo: rollNo,
+
+      success: true,
+
+      password: password
+
+    });
+
+  });
+
+
+  return results;
+
+}
+
+function getAllStudents() {
+  return sheetToObjects_(sheet_(SHEET.STUDENTS)).map(r => ({
+    rollNo: r.RollNo, name: r.Name, dept: r.Dept, year: r.Year,
+    section: r.Section, password: r.Password, createdDate: fmtDate_(r.CreatedDate)
+  }));
+}
+
+function deleteStudent(rollNo) {
+  const sh = sheet_(SHEET.STUDENTS);
+  const data = sh.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim().toLowerCase() === String(rollNo).trim().toLowerCase()) {
+      sh.deleteRow(i + 1);
+      return { success: true };
+    }
+  }
+  return { success: false, message: 'Not found' };
+}
+
+function resetStudentPassword(rollNo) {
+
+  const sh =
+    sheet_(SHEET.STUDENTS);
+
+
+  const data =
+    sh
+      .getDataRange()
+      .getValues();
+
+
+  const headers =
+    data[0];
+
+
+  const rollCol =
+    headers.indexOf('RollNo');
+
+
+  const passCol =
+    headers.indexOf('Password');
+
+
+  for (
+    let i = 1;
+    i < data.length;
+    i++
+  ) {
+
+    if (
+
+      String(data[i][rollCol] || '')
+        .trim()
+        .toLowerCase() ===
+
+      String(rollNo || '')
+        .trim()
+        .toLowerCase()
+
+    ) {
+
+      sh
+        .getRange(
+          i + 1,
+          passCol + 1
+        )
+        .setValue(
+          DEFAULT_STUDENT_PASSWORD
+        );
+
+
+      return {
+
+        success: true,
+
+        password:
+          DEFAULT_STUDENT_PASSWORD,
+
+        message:
+          'Password reset successfully'
+
+      };
+
+    }
+
+  }
+
+
+  return {
+
+    success: false,
+
+    message:
+      'Student not found'
+
+  };
+
+}
+
+/**********************************************************************
+ * QUESTION MANAGEMENT (ADMIN)
+ **********************************************************************/
+function addQuestion(data) {
+
+  ensureQuestionColumns_();
+
+
+  if (
+    !data ||
+    !String(data.dept || '').trim() ||
+    !String(data.year || '').trim() ||
+    !String(data.date || '').trim() ||
+    !String(data.question || '').trim() ||
+    !String(data.optionA || '').trim() ||
+    !String(data.optionB || '').trim() ||
+    !String(data.optionC || '').trim() ||
+    !String(data.optionD || '').trim() ||
+    !String(data.correct || '').trim() ||
+    !Number(data.timeLimit) ||
+    !Number(data.marks)
+  ) {
+
+    return {
+
+      success: false,
+
+      message:
+        'Department, Year, Date and all question fields are mandatory'
+
+    };
+
+  }
+
+
+  const sh =
+    sheet_(SHEET.QUESTIONS);
+
+
+  const qid =
+    newId_('Q');
+
+
+  sh.appendRow([
+
+    qid,
+
+    String(data.dept)
+      .trim()
+      .toUpperCase(),
+
+    String(data.year)
+      .trim(),
+
+    data.date,
+
+    String(data.question)
+      .trim(),
+
+    String(data.optionA)
+      .trim(),
+
+    String(data.optionB)
+      .trim(),
+
+    String(data.optionC)
+      .trim(),
+
+    String(data.optionD)
+      .trim(),
+
+    String(data.correct)
+      .trim()
+      .toUpperCase(),
+
+    String(data.imageLink || '')
+      .trim(),
+
+    Number(data.timeLimit),
+
+    Number(data.marks),
+
+    todayStr_(),
+
+    false
+
+  ]);
+
+
+  return {
+
+    success: true,
+
+    qid: qid
+
+  };
+
+}
+
+/**
+ * A question's answer key is visible if an admin manually revealed it,
+ * OR automatically once the calendar day has rolled over past its date
+ * (i.e. from 12:00 AM the day after it was asked).
+ */
+function isRevealed_(q) {
+
+  return (
+
+    q.Revealed === true ||
+
+    String(q.Revealed || "")
+      .trim()
+      .toUpperCase() === "TRUE"
+
+  );
+
+}
+
+function getQuestionsByDate(
+  date,
+  dept,
+  year
+) {
+
+  ensureQuestionColumns_();
+
+
+  const deptKey =
+    String(dept || '')
+      .trim()
+      .toUpperCase();
+
+
+  const yearKey =
+    String(year || '')
+      .trim();
+
+
+  return sheetToObjects_(
+    sheet_(SHEET.QUESTIONS)
+  )
+
+    .filter(r => {
+
+      const sameDate =
+        fmtDate_(r.Date) === date;
+
+
+      const sameDept =
+        !deptKey ||
+
+        String(r.Dept || '')
+          .trim()
+          .toUpperCase() === deptKey;
+
+
+      const sameYear =
+        !yearKey ||
+
+        String(r.Year || '')
+          .trim() === yearKey;
+
+
+      return (
+        sameDate &&
+        sameDept &&
+        sameYear
+      );
+
+    })
+
+    .map(r => ({
+
+      qid: r.QID,
+
+      dept: r.Dept,
+
+      year: r.Year,
+
+      date:
+        fmtDate_(r.Date),
+
+      question:
+        r.Question,
+
+      optionA:
+        r.OptionA,
+
+      optionB:
+        r.OptionB,
+
+      optionC:
+        r.OptionC,
+
+      optionD:
+        r.OptionD,
+
+      correct:
+        r.Correct,
+
+      imageLink:
+        r.ImageLink,
+
+      timeLimit:
+        r.TimeLimit,
+
+      marks:
+        r.Marks
+
+    }));
+
+}
+
+function getAllQuestions() {
+
+  ensureQuestionColumns_();
+
+
+  return sheetToObjects_(
+    sheet_(SHEET.QUESTIONS)
+  )
+
+    .map(r => ({
+
+      qid: r.QID,
+
+      dept: r.Dept,
+
+      year: r.Year,
+
+      date: fmtDate_(r.Date),
+
+      question: r.Question,
+
+      optionA: r.OptionA,
+
+      optionB: r.OptionB,
+
+      optionC: r.OptionC,
+
+      optionD: r.OptionD,
+
+      correct: r.Correct,
+
+      imageLink: r.ImageLink,
+
+      timeLimit: r.TimeLimit,
+
+      marks: r.Marks,
+
+      manualReveal:
+        r.Revealed === true ||
+        String(r.Revealed)
+          .trim()
+          .toUpperCase() === "TRUE",
+
+      revealed:
+        isRevealed_(r)
+
+    }))
+
+    .sort(
+      (a, b) =>
+        b.date.localeCompare(a.date)
+    );
+
+}
+
+/** Manually reveal/hide the answer key for one question. */
+function toggleQuestionReveal(qid, revealed) {
+  ensureQuestionColumns_();
+  const sh = sheet_(SHEET.QUESTIONS);
+  const data = sh.getDataRange().getValues();
+  const headers = data[0];
+  const qidCol = headers.indexOf('QID');
+  const revCol = headers.indexOf('Revealed');
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][qidCol]) === String(qid)) {
+      sh.getRange(i + 1, revCol + 1).setValue(revealed);
+      return { success: true };
+    }
+  }
+  return { success: false, message: 'Question not found' };
+}
+
+/** Manually reveal/hide the answer key for every question on a given date (bulk action). */
+function setDateReveal(
+  date,
+  dept,
+  year,
+  revealed
+) {
+
+  ensureQuestionColumns_();
+
+
+  const sh =
+    sheet_(SHEET.QUESTIONS);
+
+
+  const data =
+    sh
+      .getDataRange()
+      .getValues();
+
+
+  const headers =
+    data[0];
+
+
+  const dateCol =
+    headers.indexOf("Date");
+
+
+  const deptCol =
+    headers.indexOf("Dept");
+
+
+  const yearCol =
+    headers.indexOf("Year");
+
+
+  const revCol =
+    headers.indexOf("Revealed");
+
+
+  const deptKey =
+    String(dept || "")
+      .trim()
+      .toUpperCase();
+
+
+  const yearKey =
+    String(year || "")
+      .trim();
+
+
+  if (
+    !date ||
+    !deptKey ||
+    !yearKey
+  ) {
+
+    return {
+
+      success: false,
+
+      message:
+        "Date, Department and Year are required"
+
+    };
+
+  }
+
+
+  let count = 0;
+
+
+  for (
+    let i = 1;
+    i < data.length;
+    i++
+  ) {
+
+
+    const sameDate =
+
+      fmtDate_(
+        data[i][dateCol]
+      ) === date;
+
+
+    const sameDept =
+
+      String(
+        data[i][deptCol] || ""
+      )
+        .trim()
+        .toUpperCase() === deptKey;
+
+
+    const sameYear =
+
+      String(
+        data[i][yearCol] || ""
+      )
+        .trim() === yearKey;
+
+
+    if (
+      sameDate &&
+      sameDept &&
+      sameYear
+    ) {
+
+      sh
+        .getRange(
+          i + 1,
+          revCol + 1
+        )
+        .setValue(
+          revealed === true
+        );
+
+
+      count++;
+
+    }
+
+  }
+
+
+  return {
+
+    success: true,
+
+    count:
+      count
+
+  };
+
+}
+
+function deleteQuestion(qid) {
+  const sh = sheet_(SHEET.QUESTIONS);
+  const data = sh.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(qid)) {
+      sh.deleteRow(i + 1);
+      return { success: true };
+    }
+  }
+  return { success: false, message: 'Not found' };
+}
+
+/**********************************************************************
+ * STUDENT — TODAY'S TEST
+ **********************************************************************/
+
+function recordViolation(data) {
+
+  if (!data || !data.rollNo || !data.violationType) {
+    return {
+      success: false,
+      message: 'Invalid violation data'
+    };
+  }
+
+  const sh = sheet_(SHEET.VIOLATIONS);
+
+  if (sh.getLastRow() === 0) {
+    sh.appendRow([
+      'ViolationID',
+      'RollNo',
+      'Date',
+      'ViolationType',
+      'ViolationLabel',
+      'QID',
+      'QuestionIndex',
+      'DetectedAt',
+      'Timestamp'
+    ]);
+  }
+
+  const today = todayStr_();
+
+  const rollNo = String(data.rollNo)
+    .trim()
+    .toLowerCase();
+
+  const rows = sheetToObjects_(sh);
+
+  // Only ONE violation per student per day
+  const existing = rows.find(r =>
+    String(r.RollNo).trim().toLowerCase() === rollNo &&
+    fmtDate_(r.Date) === today
+  );
+
+  if (existing) {
+
+    return {
+      success: true,
+      alreadyRecorded: true,
+      violationType: existing.ViolationType,
+      violationLabel: existing.ViolationLabel
+    };
+
+  }
+
+  sh.appendRow([
+    newId_('V'),
+    data.rollNo,
+    today,
+    data.violationType,
+    data.violationLabel || data.violationType,
+    data.qid || '',
+    Number(data.questionIndex || 0),
+    data.detectedAt || new Date().toISOString(),
+    new Date()
+  ]);
+
+  return {
+    success: true,
+    alreadyRecorded: false,
+    violationType: data.violationType,
+    violationLabel:
+      data.violationLabel || data.violationType
+  };
+}
+
+function getTodayTestInfo(rollNo) {
+
+  const today =
+    todayStr_();
+
+
+  const rollKey =
+    String(rollNo || '')
+      .trim()
+      .toLowerCase();
+
+
+  const students =
+    sheetToObjects_(
+      sheet_(SHEET.STUDENTS)
+    );
+
+
+  const student =
+    students.find(s =>
+
+      String(s.RollNo || '')
+        .trim()
+        .toLowerCase() === rollKey
+
+    );
+
+
+  const studentDept =
+    String(student.Dept || '')
+      .trim()
+      .toUpperCase();
+
+
+  const studentYear =
+    String(student.Year || '')
+      .trim();
+
+
+  // ONLY matching DATE + DEPARTMENT + YEAR
+  const questions =
+    getQuestionsByDate(
+
+      today,
+
+      studentDept,
+
+      studentYear
+
+    );
+
+
+  const violations =
+    sheetToObjects_(
+      sheet_(SHEET.VIOLATIONS)
+    );
+
+
+  const violation =
+    violations.find(r =>
+
+      String(r.RollNo || '')
+        .trim()
+        .toLowerCase() === rollKey &&
+
+      fmtDate_(r.Date) === today
+
+    );
+
+
+  const responses =
+    sheetToObjects_(
+      sheet_(SHEET.RESPONSES)
+    )
+
+      .filter(r =>
+
+        String(r.RollNo || '')
+          .trim()
+          .toLowerCase() === rollKey &&
+
+        fmtDate_(r.Date) === today
+
+      );
+
+
+  const attemptedQids =
+    responses.map(r =>
+      String(r.QID)
+    );
+
+
+  const remaining =
+    questions.filter(q =>
+
+      !attemptedQids.includes(
+        String(q.qid)
+      )
+
+    );
+
+
+  if (violation) {
+
+    return {
+
+      date: today,
+
+      dept: studentDept,
+
+      year: studentYear,
+
+      totalQuestions:
+        questions.length,
+
+      attempted:
+        attemptedQids.length,
+
+      remaining: 0,
+
+      completed: true,
+
+      violated: true,
+
+      violationType:
+        violation.ViolationType,
+
+      violationLabel:
+        violation.ViolationLabel,
+
+      questions: []
+
+    };
+
+  }
+
+
+  const safeQuestions =
+    remaining.map(q => ({
+
+      qid:
+        q.qid,
+
+      question:
+        q.question,
+
+      optionA:
+        q.optionA,
+
+      optionB:
+        q.optionB,
+
+      optionC:
+        q.optionC,
+
+      optionD:
+        q.optionD,
+
+      imageLink:
+        q.imageLink,
+
+      timeLimit:
+        q.timeLimit,
+
+      marks:
+        q.marks
+
+    }));
+
+
+  return {
+
+    success: true,
+
+    date: today,
+
+    dept:
+      studentDept,
+
+    year:
+      studentYear,
+
+    totalQuestions:
+      questions.length,
+
+    attempted:
+      attemptedQids.length,
+
+    remaining:
+      remaining.length,
+
+    completed:
+      questions.length > 0 &&
+      remaining.length === 0,
+
+    violated: false,
+
+    questions:
+      safeQuestions
+
+  };
+
+}
+
+function submitAnswer(data) {
+  // data: { rollNo, qid, selected, timeTaken }
+  const violationRows = sheetToObjects_(
+  sheet_(SHEET.VIOLATIONS)
+);
+
+const blocked = violationRows.some(r =>
+  String(r.RollNo).trim().toLowerCase() ===
+    String(data.rollNo).trim().toLowerCase() &&
+
+  fmtDate_(r.Date) === todayStr_()
+);
+
+if (blocked) {
+
+  return {
+    success: false,
+    message:
+      'Test terminated due to a recorded violation'
+  };
+
+}
+  const qsh = sheet_(SHEET.QUESTIONS);
+  const questions = sheetToObjects_(qsh);
+  const q = questions.find(r => String(r.QID) === String(data.qid));
+  if (!q) return { success: false, message: 'Question not found' };
+
+  const student =
+  sheetToObjects_(
+    sheet_(SHEET.STUDENTS)
+  ).find(s =>
+
+    String(s.RollNo)
+      .trim()
+      .toLowerCase() ===
+
+    String(data.rollNo)
+      .trim()
+      .toLowerCase()
+
+  );
+
+
+if (!student) {
+
+  return {
+
+    success: false,
+
+    message:
+      'Student not found'
+
+  };
+
+}
+
+
+const studentDept =
+  String(student.Dept || '')
+    .trim()
+    .toUpperCase();
+
+
+const questionDept =
+  String(q.Dept || '')
+    .trim()
+    .toUpperCase();
+
+
+const studentYear =
+  String(student.Year || '')
+    .trim();
+
+
+const questionYear =
+  String(q.Year || '')
+    .trim();
+
+
+if (
+  studentDept !== questionDept ||
+  studentYear !== questionYear
+) {
+
+  return {
+
+    success: false,
+
+    message:
+      'This question does not belong to your Department and Year'
+
+  };
+
+}
+
+  const respSh = sheet_(SHEET.RESPONSES);
+  const existing = sheetToObjects_(respSh);
+  const already = existing.find(r => String(r.RollNo).trim().toLowerCase() === String(data.rollNo).trim().toLowerCase()
+    && String(r.QID) === String(data.qid));
+  if (already) return { success: false, message: 'Already answered' };
+
+  const isCorrect = data.selected && String(data.selected).trim().toUpperCase() === String(q.Correct).trim().toUpperCase();
+  const marks = isCorrect ? Number(q.Marks || 1) : 0;
+  const respId = newId_('R');
+  respSh.appendRow([respId, data.rollNo, data.qid, fmtDate_(q.Date), data.selected || '', isCorrect,
+    data.timeTaken || 0, marks, new Date()]);
+  const revealed = isRevealed_(q);
+  return {
+
+  success: true,
+
+  message:
+    "Answer submitted successfully"
+
+};
+}
+
+/**********************************************************************
+ * LEADERBOARD & REPORTS
+ **********************************************************************/
+function periodRange_(period) {
+  const now = new Date();
+  const tz = Session.getScriptTimeZone() || 'Asia/Kolkata';
+  let start;
+  if (period === 'day') {
+    start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  } else if (period === 'week') {
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Monday start
+    start = new Date(now.getFullYear(), now.getMonth(), diff);
+  } else if (period === 'month') {
+    start = new Date(now.getFullYear(), now.getMonth(), 1);
+  } else if (period === 'year') {
+    start = new Date(now.getFullYear(), 0, 1);
+  } else {
+    start = new Date(2000, 0, 1);
+  }
+  return { start: Utilities.formatDate(start, tz, 'yyyy-MM-dd'), end: Utilities.formatDate(now, tz, 'yyyy-MM-dd') };
+}
+
+function getLeaderboard(
+  period,
+  dept,
+  year,
+  section
+) {
+
+  const range =
+    periodRange_(
+      period || "all"
+    );
+
+
+  const students =
+    sheetToObjects_(
+      sheet_(SHEET.STUDENTS)
+    );
+
+
+  const responses =
+    sheetToObjects_(
+      sheet_(SHEET.RESPONSES)
+    );
+
+
+  const scoreMap = {};
+
+
+  responses.forEach(r => {
+
+    const d =
+      fmtDate_(r.Date);
+
+
+    if (
+      d < range.start ||
+      d > range.end ||
+      !isPublishedResultDate_(r.Date)
+    ) {
+
+      return;
+
+    }
+
+
+    const key =
+      String(r.RollNo || "")
+        .trim()
+        .toLowerCase();
+
+
+    if (!key) {
+
+      return;
+
+    }
+
+
+    if (!scoreMap[key]) {
+
+      scoreMap[key] = {
+
+        marks: 0,
+
+        attempted: 0,
+
+        correct: 0,
+
+        days: {}
+
+      };
+
+    }
+
+
+    scoreMap[key].marks +=
+      Number(r.Marks || 0);
+
+
+    scoreMap[key].attempted +=
+      1;
+
+
+    if (
+
+      r.IsCorrect === true ||
+
+      String(r.IsCorrect || "")
+        .trim()
+        .toUpperCase() === "TRUE"
+
+    ) {
+
+      scoreMap[key].correct +=
+        1;
+
+    }
+
+
+    if (!scoreMap[key].days[d]) {
+
+      scoreMap[key].days[d] = {
+
+        totalTime: 0,
+
+        count: 0
+
+      };
+
+    }
+
+
+    scoreMap[key]
+      .days[d]
+      .totalTime +=
+        Number(r.TimeTaken || 0);
+
+
+    scoreMap[key]
+      .days[d]
+      .count +=
+        1;
+
+  });
+
+
+  let list =
+    students.map(s => {
+
+      const key =
+        String(s.RollNo || "")
+          .trim()
+          .toLowerCase();
+
+
+      const sc =
+        scoreMap[key] || {
+
+          marks: 0,
+
+          attempted: 0,
+
+          correct: 0,
+
+          days: {}
+
+        };
+
+
+      const dayAverages =
+        Object.keys(sc.days)
+          .map(date => {
+
+            const day =
+              sc.days[date];
+
+
+            return day.count > 0
+
+              ? day.totalTime /
+                day.count
+
+              : 0;
+
+          });
+
+
+      const avgTime =
+
+        dayAverages.length > 0
+
+          ? dayAverages.reduce(
+              (sum, value) =>
+                sum + value,
+              0
+            ) /
+            dayAverages.length
+
+          : 0;
+
+
+      return {
+
+        rollNo:
+          s.RollNo,
+
+        name:
+          s.Name,
+
+        dept:
+          s.Dept,
+
+        year:
+          s.Year,
+
+        section:
+          s.Section,
+
+        marks:
+          sc.marks,
+
+        attempted:
+          sc.attempted,
+
+        correct:
+          sc.correct,
+
+        avgTime:
+          Number(
+            avgTime.toFixed(2)
+          )
+
+      };
+
+    });
+
+
+  if (dept) {
+
+    list =
+      list.filter(s =>
+
+        String(s.dept || "")
+          .trim()
+          .toUpperCase() ===
+
+        String(dept || "")
+          .trim()
+          .toUpperCase()
+
+      );
+
+  }
+
+
+  if (year) {
+
+    list =
+      list.filter(s =>
+
+        String(s.year || "")
+          .trim() ===
+
+        String(year || "")
+          .trim()
+
+      );
+
+  }
+
+
+  if (section) {
+
+    list =
+      list.filter(s =>
+
+        String(s.section || "")
+          .trim()
+          .toUpperCase() ===
+
+        String(section || "")
+          .trim()
+          .toUpperCase()
+
+      );
+
+  }
+
+
+  list.sort(
+
+    (a, b) =>
+
+      b.marks -
+      a.marks
+
+      ||
+
+      b.correct -
+      a.correct
+
+      ||
+
+      a.avgTime -
+      b.avgTime
+
+  );
+
+
+  let currentRank = 0;
+
+  let previousMarks = null;
+
+  let previousCorrect = null;
+
+  let previousAvgTime = null;
+
+
+  list.forEach(
+    (student, index) => {
+
+
+      if (
+
+        student.marks !== previousMarks ||
+
+        student.correct !== previousCorrect ||
+
+        student.avgTime !== previousAvgTime
+
+      ) {
+
+        currentRank =
+          index + 1;
+
+      }
+
+
+      student.rank =
+        currentRank;
+
+
+      previousMarks =
+        student.marks;
+
+
+      previousCorrect =
+        student.correct;
+
+
+      previousAvgTime =
+        student.avgTime;
+
+    }
+  );
+
+
+  return list;
+
+}
+
+function getAdminLiveLeaderboard(
+  dept,
+  year,
+  section
+) {
+
+  const today =
+    todayStr_();
+
+
+  const students =
+    sheetToObjects_(
+      sheet_(SHEET.STUDENTS)
+    );
+
+
+  const responses =
+    sheetToObjects_(
+      sheet_(SHEET.RESPONSES)
+    )
+    .filter(r =>
+
+      fmtDate_(r.Date) === today
+
+    );
+
+
+  const studentMap = {};
+
+
+  students.forEach(s => {
+
+    const key =
+      String(s.RollNo || "")
+        .trim()
+        .toLowerCase();
+
+
+    if (key) {
+
+      studentMap[key] = s;
+
+    }
+
+  });
+
+
+  const scoreMap = {};
+
+
+  responses.forEach(r => {
+
+    const key =
+      String(r.RollNo || "")
+        .trim()
+        .toLowerCase();
+
+
+    if (!key) {
+
+      return;
+
+    }
+
+
+    if (!scoreMap[key]) {
+
+      scoreMap[key] = {
+
+        marks: 0,
+
+        attempted: 0,
+
+        correct: 0,
+
+        totalTime: 0
+
+      };
+
+    }
+
+
+    scoreMap[key].marks +=
+      Number(r.Marks || 0);
+
+
+    scoreMap[key].attempted +=
+      1;
+
+
+    scoreMap[key].totalTime +=
+      Number(r.TimeTaken || 0);
+
+
+    const isCorrect =
+
+      r.IsCorrect === true ||
+
+      String(r.IsCorrect || "")
+        .trim()
+        .toUpperCase() === "TRUE";
+
+
+    if (isCorrect) {
+
+      scoreMap[key].correct +=
+        1;
+
+    }
+
+  });
+
+
+  let list = [];
+
+
+  Object.keys(scoreMap)
+    .forEach(key => {
+
+
+      const student =
+        studentMap[key];
+
+
+      if (!student) {
+
+        return;
+
+      }
+
+
+      const score =
+        scoreMap[key];
+
+
+      const avgTime =
+
+        score.attempted > 0
+
+          ? score.totalTime /
+            score.attempted
+
+          : 0;
+
+
+      list.push({
+
+        rollNo:
+          student.RollNo,
+
+        name:
+          student.Name,
+
+        dept:
+          student.Dept,
+
+        year:
+          student.Year,
+
+        section:
+          student.Section,
+
+        marks:
+          score.marks,
+
+        attempted:
+          score.attempted,
+
+        correct:
+          score.correct,
+
+        avgTime:
+          Number(
+            avgTime.toFixed(2)
+          )
+
+      });
+
+    });
+
+
+  if (dept) {
+
+    list =
+      list.filter(s =>
+
+        String(s.dept || "")
+          .trim()
+          .toUpperCase() ===
+
+        String(dept || "")
+          .trim()
+          .toUpperCase()
+
+      );
+
+  }
+
+
+  if (year) {
+
+    list =
+      list.filter(s =>
+
+        String(s.year || "")
+          .trim() ===
+
+        String(year || "")
+          .trim()
+
+      );
+
+  }
+
+
+  if (section) {
+
+    list =
+      list.filter(s =>
+
+        String(s.section || "")
+          .trim()
+          .toUpperCase() ===
+
+        String(section || "")
+          .trim()
+          .toUpperCase()
+
+      );
+
+  }
+
+
+  list.sort(
+
+    (a, b) =>
+
+      b.marks -
+      a.marks
+
+      ||
+
+      b.correct -
+      a.correct
+
+      ||
+
+      a.avgTime -
+      b.avgTime
+
+  );
+
+
+  let rank = 0;
+
+  let previousMarks = null;
+
+  let previousCorrect = null;
+
+  let previousAvgTime = null;
+
+
+  list.forEach(
+    (student, index) => {
+
+
+      if (
+
+        student.marks !== previousMarks ||
+
+        student.correct !== previousCorrect ||
+
+        student.avgTime !== previousAvgTime
+
+      ) {
+
+        rank =
+          index + 1;
+
+      }
+
+
+      student.rank =
+        rank;
+
+
+      previousMarks =
+        student.marks;
+
+
+      previousCorrect =
+        student.correct;
+
+
+      previousAvgTime =
+        student.avgTime;
+
+    }
+  );
+
+
+  return list;
+
+}
+
+function getAdminLeaderboard(
+  period,
+  dept,
+  year,
+  section
+) {
+
+  const range =
+    periodRange_(
+      period || "all"
+    );
+
+
+  const students =
+    sheetToObjects_(
+      sheet_(SHEET.STUDENTS)
+    );
+
+
+  const responses =
+    sheetToObjects_(
+      sheet_(SHEET.RESPONSES)
+    );
+
+
+  const scoreMap = {};
+
+
+  responses.forEach(r => {
+
+    const date =
+      fmtDate_(r.Date);
+
+
+    if (
+      date < range.start ||
+      date > range.end
+    ) {
+
+      return;
+
+    }
+
+
+    const key =
+      String(r.RollNo || "")
+        .trim()
+        .toLowerCase();
+
+
+    if (!key) {
+
+      return;
+
+    }
+
+
+    if (!scoreMap[key]) {
+
+      scoreMap[key] = {
+
+        marks: 0,
+
+        attempted: 0,
+
+        correct: 0,
+
+        days: {}
+
+      };
+
+    }
+
+
+    const score =
+      scoreMap[key];
+
+
+    score.marks +=
+      Number(r.Marks || 0);
+
+
+    score.attempted += 1;
+
+
+    const isCorrect =
+
+      r.IsCorrect === true ||
+
+      String(r.IsCorrect || "")
+        .trim()
+        .toUpperCase() === "TRUE";
+
+
+    if (isCorrect) {
+
+      score.correct += 1;
+
+    }
+
+
+    if (!score.days[date]) {
+
+      score.days[date] = {
+
+        totalTime: 0,
+
+        count: 0
+
+      };
+
+    }
+
+
+    score.days[date].totalTime +=
+      Number(r.TimeTaken || 0);
+
+
+    score.days[date].count += 1;
+
+  });
+
+
+  let list = [];
+
+
+  students.forEach(student => {
+
+    const key =
+      String(student.RollNo || "")
+        .trim()
+        .toLowerCase();
+
+
+    const score =
+      scoreMap[key];
+
+
+    // Admin leaderboard:
+    // only students who attended
+    if (!score) {
+
+      return;
+
+    }
+
+
+    const dailyAverageTimes =
+
+      Object.keys(score.days)
+        .map(date => {
+
+          const day =
+            score.days[date];
+
+
+          return (
+
+            day.count > 0
+
+              ? day.totalTime /
+                day.count
+
+              : 0
+
+          );
+
+        });
+
+
+    const avgTime =
+
+      dailyAverageTimes.length > 0
+
+        ? dailyAverageTimes.reduce(
+            (sum, time) =>
+              sum + time,
+            0
+          ) /
+          dailyAverageTimes.length
+
+        : 0;
+
+
+    list.push({
+
+      rollNo:
+        student.RollNo,
+
+      name:
+        student.Name,
+
+      dept:
+        student.Dept,
+
+      year:
+        student.Year,
+
+      section:
+        student.Section,
+
+      marks:
+        score.marks,
+
+      attempted:
+        score.attempted,
+
+      correct:
+        score.correct,
+
+      avgTime:
+        Number(
+          avgTime.toFixed(2)
+        )
+
+    });
+
+  });
+
+
+  if (dept) {
+
+    list =
+      list.filter(student =>
+
+        String(student.dept || "")
+          .trim()
+          .toUpperCase() ===
+
+        String(dept || "")
+          .trim()
+          .toUpperCase()
+
+      );
+
+  }
+
+
+  if (year) {
+
+    list =
+      list.filter(student =>
+
+        String(student.year || "")
+          .trim() ===
+
+        String(year || "")
+          .trim()
+
+      );
+
+  }
+
+
+  if (section) {
+
+    list =
+      list.filter(student =>
+
+        String(student.section || "")
+          .trim()
+          .toUpperCase() ===
+
+        String(section || "")
+          .trim()
+          .toUpperCase()
+
+      );
+
+  }
+
+
+  // ============================================================
+  // RANKING
+  //
+  // 1. Marks       -> Higher better
+  // 2. Correct     -> Higher better
+  // 3. Avg Time    -> Lower better
+  // ============================================================
+
+  list.sort(
+
+    (a, b) =>
+
+      b.marks - a.marks
+
+      ||
+
+      b.correct - a.correct
+
+      ||
+
+      a.avgTime - b.avgTime
+
+  );
+
+
+  let currentRank = 0;
+
+  let previousMarks = null;
+
+  let previousCorrect = null;
+
+  let previousAvgTime = null;
+
+
+  list.forEach(
+    (student, index) => {
+
+
+      if (
+
+        student.marks !== previousMarks ||
+
+        student.correct !== previousCorrect ||
+
+        student.avgTime !== previousAvgTime
+
+      ) {
+
+        currentRank =
+          index + 1;
+
+      }
+
+
+      student.rank =
+        currentRank;
+
+
+      previousMarks =
+        student.marks;
+
+
+      previousCorrect =
+        student.correct;
+
+
+      previousAvgTime =
+        student.avgTime;
+
+    }
+  );
+
+
+  return list;
+
+}
+
+function getStudentReport(
+  rollNo,
+  period
+) {
+
+  const range =
+    periodRange_(
+      period || "all"
+    );
+
+
+  const responses =
+
+    sheetToObjects_(
+      sheet_(
+        SHEET.RESPONSES
+      )
+    )
+
+    .filter(r =>
+
+      String(r.RollNo || "")
+        .trim()
+        .toLowerCase() ===
+
+      String(rollNo || "")
+        .trim()
+        .toLowerCase()
+
+    )
+
+    .filter(r => {
+
+      const date =
+        fmtDate_(r.Date);
+
+
+      return (
+
+        date >= range.start &&
+
+        date <= range.end &&
+
+        isPublishedResultDate_(
+          r.Date
+        )
+
+      );
+
+    })
+
+    .sort(
+      (a, b) =>
+
+        fmtDate_(a.Date)
+          .localeCompare(
+            fmtDate_(b.Date)
+          )
+    );
+
+
+  const totalMarks =
+
+    responses.reduce(
+
+      (sum, r) =>
+
+        sum +
+        Number(
+          r.Marks || 0
+        ),
+
+      0
+
+    );
+
+
+  const correct =
+
+    responses.filter(r =>
+
+      r.IsCorrect === true ||
+
+      String(r.IsCorrect || "")
+        .trim()
+        .toUpperCase() === "TRUE"
+
+    ).length;
+
+
+  const leaderboard =
+
+    getLeaderboard(
+      period
+    );
+
+
+  const me =
+
+    leaderboard.find(s =>
+
+      String(s.rollNo || "")
+        .trim()
+        .toLowerCase() ===
+
+      String(rollNo || "")
+        .trim()
+        .toLowerCase()
+
+    );
+
+
+  return {
+
+    totalAttempted:
+      responses.length,
+
+    correct:
+      correct,
+
+    totalMarks:
+      totalMarks,
+
+    rank:
+      me
+        ? me.rank
+        : null,
+
+    totalStudents:
+      leaderboard.length,
+
+    history:
+
+      responses.map(r => ({
+
+        date:
+          fmtDate_(r.Date),
+
+        qid:
+          r.QID,
+
+        selected:
+          r.Selected,
+
+        isCorrect:
+          r.IsCorrect,
+
+        marks:
+          r.Marks,
+
+        timeTaken:
+          r.TimeTaken
+
+      }))
+
+  };
+
+}
+
+function getAdminStudentReport(
+  rollNo,
+  period
+) {
+
+  const range =
+    periodRange_(
+      period || "all"
+    );
+
+
+  const rollKey =
+    String(rollNo || "")
+      .trim()
+      .toLowerCase();
+
+
+  const students =
+    sheetToObjects_(
+      sheet_(SHEET.STUDENTS)
+    );
+
+
+  const student =
+    students.find(s =>
+
+      String(s.RollNo || "")
+        .trim()
+        .toLowerCase() === rollKey
+
+    );
+
+
+  if (!student) {
+
+    return {
+
+      success: false,
+
+      message:
+        "Student not found"
+
+    };
+
+  }
+
+
+  const responses =
+
+    sheetToObjects_(
+      sheet_(SHEET.RESPONSES)
+    )
+
+    .filter(r =>
+
+      String(r.RollNo || "")
+        .trim()
+        .toLowerCase() === rollKey
+
+    )
+
+    .filter(r => {
+
+      const date =
+        fmtDate_(r.Date);
+
+
+      // ADMIN LIVE:
+      // Today's result is included.
+
+      return (
+
+        date >= range.start &&
+
+        date <= range.end
+
+      );
+
+    })
+
+    .sort(
+      (a, b) =>
+
+        fmtDate_(a.Date)
+          .localeCompare(
+            fmtDate_(b.Date)
+          )
+    );
+
+
+  const totalMarks =
+
+    responses.reduce(
+
+      (sum, r) =>
+
+        sum +
+        Number(r.Marks || 0),
+
+      0
+
+    );
+
+
+  const correct =
+
+    responses.filter(r =>
+
+      r.IsCorrect === true ||
+
+      String(r.IsCorrect || "")
+        .trim()
+        .toUpperCase() === "TRUE"
+
+    ).length;
+
+
+  const leaderboard =
+
+    getAdminLeaderboard(
+
+      period,
+
+      "",
+
+      "",
+
+      ""
+
+    );
+
+
+  const me =
+
+    leaderboard.find(s =>
+
+      String(s.rollNo || "")
+        .trim()
+        .toLowerCase() === rollKey
+
+    );
+
+
+  return {
+
+    success: true,
+
+    rollNo:
+      student.RollNo,
+
+    name:
+      student.Name,
+
+    dept:
+      student.Dept,
+
+    year:
+      student.Year,
+
+    section:
+      student.Section,
+
+    totalAttempted:
+      responses.length,
+
+    correct:
+      correct,
+
+    totalMarks:
+      totalMarks,
+
+    rank:
+      me
+        ? me.rank
+        : null,
+
+    totalStudents:
+      leaderboard.length,
+
+    history:
+
+      responses.map(r => ({
+
+        date:
+          fmtDate_(r.Date),
+
+        qid:
+          r.QID,
+
+        selected:
+          r.Selected,
+
+        isCorrect:
+          r.IsCorrect,
+
+        marks:
+          r.Marks,
+
+        timeTaken:
+          r.TimeTaken
+
+      }))
+
+  };
+
+}
+
+/**
+ * Full answer-key review for a student: past questions they answered, with the
+ * correct option included ONLY for questions whose answer key is currently
+ * revealed (manually by admin, or automatically once the day has passed).
+ */
+function getAnswerKey(
+  rollNo,
+  period
+) {
+
+  const range =
+
+    periodRange_(
+      period || "all"
+    );
+
+
+  const responses =
+
+    sheetToObjects_(
+      sheet_(
+        SHEET.RESPONSES
+      )
+    )
+
+    .filter(r =>
+
+      String(r.RollNo || "")
+        .trim()
+        .toLowerCase() ===
+
+      String(rollNo || "")
+        .trim()
+        .toLowerCase()
+
+    )
+
+    .filter(r => {
+
+      const date =
+        fmtDate_(r.Date);
+
+
+      return (
+
+        date >= range.start &&
+
+        date <= range.end
+
+      );
+
+    });
+
+
+  const questions =
+
+    sheetToObjects_(
+      sheet_(
+        SHEET.QUESTIONS
+      )
+    );
+
+
+  const qMap = {};
+
+
+  questions.forEach(q => {
+
+    qMap[
+      String(q.QID)
+    ] = q;
+
+  });
+
+
+  return responses
+
+    .map(r => {
+
+
+      const q =
+
+        qMap[
+          String(r.QID)
+        ];
+
+
+      if (!q) {
+
+        return null;
+
+      }
+
+
+      const revealed =
+
+        isRevealed_(q);
+
+
+      return {
+
+        date:
+          fmtDate_(r.Date),
+
+        qid:
+          r.QID,
+
+        question:
+          q.Question,
+
+        optionA:
+          q.OptionA,
+
+        optionB:
+          q.OptionB,
+
+        optionC:
+          q.OptionC,
+
+        optionD:
+          q.OptionD,
+
+        imageLink:
+          q.ImageLink,
+
+        selected:
+          r.Selected || "",
+
+        revealed:
+          revealed,
+
+        correctAnswer:
+
+          revealed
+            ? q.Correct
+            : null
+
+      };
+
+    })
+
+    .filter(Boolean)
+
+    .sort(
+      (a, b) =>
+
+        b.date.localeCompare(
+          a.date
+        )
+    );
+
+}
+
+function getDashboardStats() {
+  const students = sheetToObjects_(sheet_(SHEET.STUDENTS));
+  const questions = sheetToObjects_(sheet_(SHEET.QUESTIONS));
+  const responses = sheetToObjects_(sheet_(SHEET.RESPONSES));
+  const today = todayStr_();
+  const todayQ = questions.filter(q => fmtDate_(q.Date) === today);
+  const todayResp = responses.filter(r => fmtDate_(r.Date) === today);
+  const attemptedToday = new Set(todayResp.map(r => String(r.RollNo).trim().toLowerCase())).size;
+  return {
+    totalStudents: students.length,
+    totalQuestions: questions.length,
+    todayQuestions: todayQ.length,
+    attemptedToday: attemptedToday,
+    notAttemptedToday: Math.max(students.length - attemptedToday, 0)
+  };
+}
+
+/** Students (in given year/section, optional) who did NOT attempt ANY of today's/date's questions */
+function getAbsentees(
+  date,
+  dept,
+  year,
+  section
+) {
+
+  const dateKey =
+    String(date || "")
+      .trim();
+
+
+  if (!dateKey) {
+
+    return [];
+
+  }
+
+
+  const students =
+    sheetToObjects_(
+      sheet_(SHEET.STUDENTS)
+    );
+
+
+  const responses =
+    sheetToObjects_(
+      sheet_(SHEET.RESPONSES)
+    )
+    .filter(r =>
+
+      fmtDate_(r.Date) === dateKey
+
+    );
+
+
+  /*
+   * Students who have at least
+   * one response on selected date
+   */
+
+  const attendedRolls =
+    new Set();
+
+
+  responses.forEach(r => {
+
+    const rollKey =
+      String(r.RollNo || "")
+        .trim()
+        .toLowerCase();
+
+
+    if (rollKey) {
+
+      attendedRolls.add(
+        rollKey
+      );
+
+    }
+
+  });
+
+
+  /*
+   * Start with all students
+   */
+
+  let list =
+    students.slice();
+
+
+  /*
+   * Department filter
+   */
+
+  if (dept) {
+
+    list =
+      list.filter(s =>
+
+        String(s.Dept || "")
+          .trim()
+          .toUpperCase() ===
+
+        String(dept || "")
+          .trim()
+          .toUpperCase()
+
+      );
+
+  }
+
+
+  /*
+   * Year filter
+   */
+
+  if (year) {
+
+    list =
+      list.filter(s =>
+
+        String(s.Year || "")
+          .trim()
+          .toUpperCase() ===
+
+        String(year || "")
+          .trim()
+          .toUpperCase()
+
+      );
+
+  }
+
+
+  /*
+   * Section filter
+   */
+
+  if (section) {
+
+    list =
+      list.filter(s =>
+
+        String(s.Section || "")
+          .trim()
+          .toUpperCase() ===
+
+        String(section || "")
+          .trim()
+          .toUpperCase()
+
+      );
+
+  }
+
+
+  /*
+   * Student is absent when
+   * there is NO response for
+   * selected date
+   */
+
+  return list
+
+    .filter(s => {
+
+      const rollKey =
+        String(s.RollNo || "")
+          .trim()
+          .toLowerCase();
+
+
+      return !attendedRolls.has(
+        rollKey
+      );
+
+    })
+
+
+    .map(s => ({
+
+      rollNo:
+        s.RollNo,
+
+      name:
+        s.Name,
+
+      dept:
+        s.Dept,
+
+      year:
+        s.Year,
+
+      section:
+        s.Section
+
+    }));
+
+}
+
+/**********************************************************************
+ * PDF GENERATION — Absentee Report
+ **********************************************************************/
+function generateAbsenteePdf(
+  date,
+  dept,
+  year,
+  section
+) {
+
+  const absentees =
+    getAbsentees(
+
+      date,
+
+      dept,
+
+      year,
+
+      section
+
+    );
+
+
+  const html =
+    buildAbsenteeHtml_(
+
+      date,
+
+      dept,
+
+      year,
+
+      section,
+
+      absentees
+
+    );
+
+
+  const fileName =
+
+    "Absentees_" +
+
+    date +
+
+    (
+      dept
+
+        ? "_" + dept
+
+        : ""
+    )
+
+    +
+
+    (
+      year
+
+        ? "_Y" + year
+
+        : ""
+    )
+
+    +
+
+    (
+      section
+
+        ? "_" + section
+
+        : ""
+    )
+
+    +
+
+    ".pdf";
+
+
+  const blob =
+
+    HtmlService
+      .createHtmlOutput(html)
+      .getAs("application/pdf")
+      .setName(fileName);
+
+
+  return {
+
+    fileName:
+      blob.getName(),
+
+    base64:
+      Utilities.base64Encode(
+        blob.getBytes()
+      ),
+
+    mimeType:
+      "application/pdf",
+
+    count:
+      absentees.length
+
+  };
+
+}
+
+function buildAbsenteeHtml_(date, dept, year, section, list) {
+  const rows = list.map((s, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${s.rollNo}</td>
+      <td>${s.name}</td>
+      <td>${s.dept}</td>
+      <td>${s.year}</td>
+      <td>${s.section}</td>
+    </tr>`).join('');
+
+  return `<!DOCTYPE html>
+  <html><head><meta charset="utf-8">
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; padding: 20px; }
+    .header { text-align: center; border-bottom: 3px solid #7C3AED; padding-bottom: 12px; margin-bottom: 18px; }
+    .header h1 { margin: 0; color: #7C3AED; letter-spacing: 1px; font-size: 22px; }
+    .header p { margin: 4px 0 0; font-size: 12px; color: #555; }
+    .meta { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 14px; padding: 8px 12px; background: #F5F0FF; border-radius: 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { background: #7C3AED; color: #fff; padding: 8px 6px; text-align: left; }
+    td { padding: 7px 6px; border-bottom: 1px solid #e4dcf7; }
+    tr:nth-child(even) { background: #FBF8FF; }
+    .footer { margin-top: 20px; font-size: 10px; color: #888; text-align: center; }
+  </style></head>
+  <body>
+    <div class="header">
+      <h1>DAILY ASSESSMENT — ABSENTEE REPORT</h1>
+      <p>Students who did not attempt the test on ${date}</p>
+    </div>
+    <div class="meta">
+
+  <span>
+    <b>Date:</b>
+    ${date}
+  </span>
+
+  <span>
+    <b>Department:</b>
+    ${dept || "All"}
+  </span>
+
+  <span>
+    <b>Year:</b>
+    ${year || "All"}
+  </span>
+
+  <span>
+    <b>Section:</b>
+    ${section || "All"}
+  </span>
+
+  <span>
+    <b>Total Absent:</b>
+    ${list.length}
+  </span>
+
+</div>
+    <table>
+      <thead><tr><th>S.No</th><th>Roll No</th><th>Name</th><th>Dept</th><th>Year</th><th>Section</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="6" style="text-align:center;padding:14px;">No absentees — full attendance!</td></tr>'}</tbody>
+    </table>
+    <div class="footer">Generated on ${todayStr_()} • Daily Question Assessment Platform</div>
+  </body></html>`;
+}
+
+function generateTopperPdf(
+  period,
+  dept,
+  year,
+  section
+) {
+
+  const list =
+    getAdminLeaderboard(
+
+      period,
+
+      dept,
+
+      year,
+
+      section
+
+    )
+    .slice(0, 20);
+
+
+  const rows =
+    list.map(s => `
+
+      <tr>
+
+        <td>${s.rank}</td>
+
+        <td>${s.rollNo}</td>
+
+        <td>${s.name}</td>
+
+        <td>${s.dept}</td>
+
+        <td>${s.year}</td>
+
+        <td>${s.section}</td>
+
+        <td>${s.marks}</td>
+
+        <td>
+          ${s.correct}/${s.attempted}
+        </td>
+
+      </tr>
+
+    `).join("");
+
+
+  const html = `
+
+    <!DOCTYPE html>
+
+    <html>
+
+    <head>
+
+      <meta charset="utf-8">
+
+      <style>
+
+        body {
+
+          font-family:
+            Arial,
+            Helvetica,
+            sans-serif;
+
+          color: #1a1a1a;
+
+          padding: 20px;
+
+        }
+
+
+        .header {
+
+          text-align: center;
+
+          border-bottom:
+            3px solid #DB2777;
+
+          padding-bottom: 12px;
+
+          margin-bottom: 18px;
+
+        }
+
+
+        .header h1 {
+
+          margin: 0;
+
+          color: #DB2777;
+
+          letter-spacing: 1px;
+
+          font-size: 22px;
+
+        }
+
+
+        .meta {
+
+          font-size: 12px;
+
+          margin-bottom: 14px;
+
+          padding: 8px 12px;
+
+          background: #FFF5FA;
+
+        }
+
+
+        table {
+
+          width: 100%;
+
+          border-collapse: collapse;
+
+          font-size: 12px;
+
+        }
+
+
+        th {
+
+          background: #DB2777;
+
+          color: #fff;
+
+          padding: 8px 6px;
+
+          text-align: left;
+
+        }
+
+
+        td {
+
+          padding: 7px 6px;
+
+          border-bottom:
+            1px solid #f7dce9;
+
+        }
+
+
+        tr:nth-child(even) {
+
+          background: #FFF5FA;
+
+        }
+
+
+        .footer {
+
+          margin-top: 20px;
+
+          font-size: 10px;
+
+          color: #888;
+
+          text-align: center;
+
+        }
+
+      </style>
+
+    </head>
+
+
+    <body>
+
+
+      <div class="header">
+
+        <h1>
+
+          TOPPER LIST —
+          ${(period || "ALL").toUpperCase()}
+
+        </h1>
+
+      </div>
+
+
+      <div class="meta">
+
+        <b>Department:</b>
+        ${dept || "All"}
+
+        &nbsp;&nbsp; | &nbsp;&nbsp;
+
+        <b>Year:</b>
+        ${year || "All"}
+
+        &nbsp;&nbsp; | &nbsp;&nbsp;
+
+        <b>Section:</b>
+        ${section || "All"}
+
+      </div>
+
+
+      <table>
+
+        <thead>
+
+          <tr>
+
+            <th>Rank</th>
+
+            <th>Roll No</th>
+
+            <th>Name</th>
+
+            <th>Dept</th>
+
+            <th>Year</th>
+
+            <th>Sec</th>
+
+            <th>Marks</th>
+
+            <th>Correct</th>
+
+          </tr>
+
+        </thead>
+
+
+        <tbody>
+
+          ${
+            rows ||
+
+            `
+
+              <tr>
+
+                <td
+                  colspan="8"
+                  style="
+                    text-align:center;
+                    padding:14px;
+                  "
+                >
+
+                  No leaderboard data
+
+                </td>
+
+              </tr>
+
+            `
+          }
+
+        </tbody>
+
+      </table>
+
+
+      <div class="footer">
+
+        Generated on
+        ${todayStr_()}
+        • Daily Question Assessment Platform
+
+      </div>
+
+
+    </body>
+
+    </html>
+
+  `;
+
+
+  const fileName =
+
+    "Toppers_" +
+
+    (period || "all")
+
+    +
+
+    (
+      dept
+
+        ? "_" + dept
+
+        : ""
+    )
+
+    +
+
+    (
+      year
+
+        ? "_Y" + year
+
+        : ""
+    )
+
+    +
+
+    (
+      section
+
+        ? "_" + section
+
+        : ""
+    )
+
+    +
+
+    ".pdf";
+
+
+  const blob =
+
+    HtmlService
+      .createHtmlOutput(html)
+      .getAs("application/pdf")
+      .setName(fileName);
+
+
+  return {
+
+    fileName:
+      blob.getName(),
+
+    base64:
+      Utilities.base64Encode(
+        blob.getBytes()
+      ),
+
+    mimeType:
+      "application/pdf"
+
+  };
+
+}
+
+function getDistinctYearsSections() {
+
+  const students =
+    sheetToObjects_(
+      sheet_(SHEET.STUDENTS)
+    );
+
+
+  const departments = [
+
+    ...new Set(
+
+      students
+
+        .map(s =>
+
+          String(s.Dept || "")
+            .trim()
+            .toUpperCase()
+
+        )
+
+        .filter(Boolean)
+
+    )
+
+  ].sort();
+
+
+  const years = [
+
+    ...new Set(
+
+      students
+
+        .map(s =>
+
+          String(s.Year || "")
+            .trim()
+
+        )
+
+        .filter(Boolean)
+
+    )
+
+  ].sort(
+
+    (a, b) =>
+      Number(a) - Number(b)
+
+  );
+
+
+  const sections = [
+
+    ...new Set(
+
+      students
+
+        .map(s =>
+
+          String(s.Section || "")
+            .trim()
+            .toUpperCase()
+
+        )
+
+        .filter(Boolean)
+
+    )
+
+  ].sort();
+
+
+  return {
+
+    departments:
+      departments,
+
+    years:
+      years,
+
+    sections:
+      sections
+
+  };
+
+}
